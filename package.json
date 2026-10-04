@@ -3,7 +3,7 @@
   "private": true,
   "description": "Demonstrații interactive pentru cursul Sisteme de Timp Real (UTCN)",
   "scripts": {
-    "test": "node --test tests/",
+    "test": "node --test tests/*.test.js",
     "start": "python3 -m http.server 8000"
   }
 }

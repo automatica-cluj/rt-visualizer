@@ -1,4 +1,4 @@
-// Rulare: node --test tests/
+// Rulare: npm test (sau node --test tests/*.test.js)
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const S = require('../js/sim.js');
