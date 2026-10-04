@@ -1,0 +1,9 @@
+{
+  "name": "rt-visualizer",
+  "private": true,
+  "description": "Demonstrații interactive pentru cursul Sisteme de Timp Real (UTCN)",
+  "scripts": {
+    "test": "node --test tests/",
+    "start": "python3 -m http.server 8000"
+  }
+}

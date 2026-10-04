@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vizualizator timp real</title>
+  <meta name="description" content="Demonstrații interactive pentru cursul Sisteme de Timp Real: modelul de task, eliberări periodice, sporadice și aperiodice, planificare RM, DM, EDF, LLF și încărcarea procesorului.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1>Vizualizator timp real</h1>
+    <p>Sisteme de Timp Real, UTCN: modelul de task și planificarea, văzute pe axa timpului</p>
+  </div>
+  <button id="theme" class="ghost" type="button" title="Schimbă tema">Temă</button>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" data-tab="model" aria-selected="true">1. Modelul de task</button>
+  <button role="tab" data-tab="arrivals">2. Periodic, sporadic, aperiodic</button>
+  <button role="tab" data-tab="sched">3. Planificare și încărcare</button>
+  <button role="tab" data-tab="help">Legendă</button>
+</nav>
+
+<main>
+  <!-- 1. Modelul de task ------------------------------------------------>
+  <section id="tab-model" class="tab" role="tabpanel">
+    <p class="lead">Un task este redus la câteva numere: momentul primei eliberări
+      $r_0$, timpul de calcul $C$, perioada $T$ și termenul-limită relativ $D$.
+      Modificați-le și urmăriți cum se mută eliberările (săgeți în sus),
+      termenele-limită absolute $d_k = r_k + D$ (săgeți în jos), timpul de
+      răspuns $R$ și laxitatea $X(t)$.</p>
+    <div class="controls">
+      <fieldset>
+        <legend>Taskul analizat</legend>
+        <label>Timp de calcul $C$ <input type="range" id="m-C" min="1" max="12" value="3"><output></output></label>
+        <label>Perioadă $T$ <input type="range" id="m-T" min="2" max="20" value="10"><output></output></label>
+        <label>Termen-limită $D$ <input type="range" id="m-D" min="1" max="20" value="8"><output></output></label>
+        <label>Prima eliberare $r_0$ <input type="range" id="m-r" min="0" max="10" value="0"><output></output></label>
+      </fieldset>
+      <fieldset>
+        <legend>Un task mai prioritar (interferență)</legend>
+        <label class="check"><input type="checkbox" id="m-hp" checked> activ</label>
+        <label>$C_h$ <input type="range" id="m-hC" min="1" max="8" value="2"><output></output></label>
+        <label>$T_h$ <input type="range" id="m-hT" min="2" max="30" value="12"><output></output></label>
+        <label>Prima eliberare <input type="range" id="m-hr" min="0" max="15" value="2"><output></output></label>
+      </fieldset>
+    </div>
+    <div class="figure">
+      <div class="fig-title">Diagrama de timp</div>
+      <div class="svgwrap"><svg id="m-gantt" role="img" aria-label="Diagrama de timp a taskului"></svg></div>
+    </div>
+    <div class="cards" id="m-cards"></div>
+    <div class="figure">
+      <div class="fig-title">Laxitatea $X(t) = (d_k - t) - c(t)$ a fiecărui job al taskului analizat</div>
+      <div class="svgwrap"><svg id="m-lax" role="img" aria-label="Laxitatea în timp"></svg></div>
+      <p class="note">Cât timp jobul rulează, laxitatea rămâne constantă; cât timp așteaptă în Ready,
+        scade cu o unitate la fiecare pas. Sub zero, termenul va fi ratat orice ar face planificatorul.</p>
+    </div>
+  </section>
+
+  <!-- 2. Tipuri de eliberări -------------------------------------------->
+  <section id="tab-arrivals" class="tab" role="tabpanel" hidden>
+    <p class="lead">Trei taskuri cu același $C$ și același $T$, fiecare singur pe procesor.
+      Diferă doar ce se știe despre eliberări: la cel <b>periodic</b> toate momentele,
+      la cel <b>sporadic</b> doar că între două eliberări trec cel puțin $T$ unități,
+      la cel <b>aperiodic</b> nimic (aici $T$ este doar intervalul mediu).</p>
+    <div class="controls">
+      <fieldset>
+        <legend>Parametri</legend>
+        <label>Timp de calcul $C$ <input type="range" id="a-C" min="1" max="10" value="3"><output></output></label>
+        <label>$T$ (perioadă / interval minim / interval mediu) <input type="range" id="a-T" min="4" max="30" value="10"><output></output></label>
+        <label>Orizont <input type="range" id="a-H" min="40" max="300" step="10" value="120"><output></output></label>
+        <button id="a-seed" type="button">Altă realizare aleatoare</button>
+      </fieldset>
+    </div>
+    <div class="figure">
+      <div class="fig-title">Eliberări și execuție</div>
+      <div class="svgwrap"><svg id="a-gantt" role="img" aria-label="Eliberările celor trei tipuri de task"></svg></div>
+    </div>
+    <div class="figure">
+      <div class="fig-title">Cererea de procesor cumulată: suma lui $C$ pentru joburile eliberate până la $t$</div>
+      <div class="svgwrap"><svg id="a-demand" role="img" aria-label="Cererea de procesor cumulată"></svg></div>
+      <div class="legend" id="a-legend"></div>
+    </div>
+    <div class="table-wrap"><table id="a-table"></table></div>
+    <p class="note">Pentru analiză, taskul sporadic se tratează ca unul periodic cu perioada egală cu
+      intervalul minim: cererea lui nu poate depăși niciodată linia celui periodic pe nicio fereastră.
+      Taskul aperiodic nu are o astfel de margine: o rafală poate aduce oricâte eliberări într-o fereastră.</p>
+  </section>
+
+  <!-- 3. Planificare ------------------------------------------------------>
+  <section id="tab-sched" class="tab" role="tabpanel" hidden>
+    <div class="controls">
+      <fieldset class="grow">
+        <legend>Setul de taskuri</legend>
+        <label>Exemplu <select id="s-preset"></select></label>
+        <p class="note" id="s-preset-note"></p>
+        <div class="table-wrap"><table id="s-tasks" class="edit"></table></div>
+        <div class="row">
+          <button id="s-add" type="button">Adaugă task</button>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Planificator</legend>
+        <label>Algoritm <select id="s-policy"></select></label>
+        <label class="check"><input type="checkbox" id="s-preempt" checked> preemptiv</label>
+        <label class="check"><input type="checkbox" id="s-varC"> timp de execuție real variabil ($\le C$)</label>
+        <label class="check"><input type="checkbox" id="s-abort"> abandonează jobul la termenul ratat</label>
+        <label>Orizont <input type="number" id="s-H" min="5" max="600" value="40"> <span class="hint" id="s-Hhint"></span></label>
+        <button id="s-seed" type="button">Altă realizare aleatoare</button>
+      </fieldset>
+    </div>
+
+    <div class="cards" id="s-cards"></div>
+
+    <div class="figure">
+      <div class="fig-title">Diagrama de timp: faceți clic pe diagramă pentru a muta cursorul
+        <span class="player">
+          <button id="s-back" type="button" title="Un pas înapoi">◀</button>
+          <button id="s-play" type="button">Pornește</button>
+          <button id="s-fwd" type="button" title="Un pas înainte">▶</button>
+        </span>
+      </div>
+      <div class="svgwrap"><svg id="s-gantt" role="img" aria-label="Diagrama de planificare"></svg></div>
+    </div>
+
+    <div class="split">
+      <div class="figure">
+        <div class="fig-title" id="s-state-title">Starea taskurilor la cursor</div>
+        <div class="table-wrap"><table id="s-state"></table></div>
+      </div>
+      <div class="figure">
+        <div class="fig-title">Factorul de utilizare $U = \sum C_i / T_i$</div>
+        <div id="s-ubar"></div>
+      </div>
+    </div>
+
+    <div class="figure">
+      <div class="fig-title">Încărcarea procesorului în timp</div>
+      <div class="row">
+        <label>Fereastra de mediere <input type="range" id="s-win" min="1" max="60" value="10"><output></output></label>
+      </div>
+      <div class="svgwrap"><svg id="s-load" role="img" aria-label="Încărcarea procesorului"></svg></div>
+      <div class="legend" id="s-load-legend"></div>
+    </div>
+
+    <div class="split">
+      <div class="figure">
+        <div class="fig-title">Rezultatul simulării, pe taskuri</div>
+        <div class="table-wrap"><table id="s-stats"></table></div>
+      </div>
+      <div class="figure">
+        <div class="fig-title">Teste de planificabilitate (partea IV)</div>
+        <div id="s-analysis"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Legendă ----------------------------------------------------------->
+  <section id="tab-help" class="tab" role="tabpanel" hidden>
+    <div class="figure">
+      <div class="fig-title">Cum se citește diagrama</div>
+      <div class="svgwrap"><svg id="h-gantt" role="img" aria-label="Exemplu adnotat"></svg></div>
+    </div>
+    <dl class="defs">
+      <dt>Bloc plin, „J0”, „J1”, …</dt><dd>jobul rulează pe procesor; eticheta este indicele jobului $k$.</dd>
+      <dt>Bandă hașurată</dt><dd>jobul a fost eliberat, dar așteaptă în Ready: procesorul este ocupat de alt job.</dd>
+      <dt>Săgeată în sus</dt><dd>eliberare (release) $r_k$: jobul $k$ devine gata de execuție.</dd>
+      <dt>Săgeată în jos, colorată</dt><dd>termenul-limită absolut (absolute deadline) $d_k = r_k + D$.</dd>
+      <dt>Săgeată în jos roșie, „✕ ratat”</dt><dd>jobul nu a terminat până la $d_k$ (deadline miss).</dd>
+      <dt>Rândul „Procesor”</dt><dd>cine ocupă procesorul la fiecare moment; linia subțire gri înseamnă procesor liber.</dd>
+      <dt>$T$, $T_{min}$, $\bar T$</dt><dd>perioada (periodic), intervalul minim între sosiri (sporadic), intervalul mediu (aperiodic).</dd>
+      <dt>Laxitate (laxity) $X(t)$</dt><dd>cât mai poate aștepta jobul fără să-și rateze termenul: $(d_k - t) - c(t)$.</dd>
+    </dl>
+    <p class="note">Notația este cea din cursul <i>Sisteme de Timp Real</i> (Anexa „Notație”).
+      Timpul este discret: o unitate de timp se numește aici, convențional, ms. La aceeași cheie de prioritate,
+      câștigă taskul aflat mai sus în tabel.</p>
+  </section>
+</main>
+
+<footer class="foot">
+  Material didactic pentru cursul Sisteme de Timp Real, Universitatea Tehnică din Cluj-Napoca.
+  Simulare discretă pe un singur nucleu, fără costul comutării de context.
+</footer>
+
+<script src="js/sim.js"></script>
+<script src="js/render.js"></script>
+<script src="js/presets.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
