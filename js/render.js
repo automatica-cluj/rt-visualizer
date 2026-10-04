@@ -92,7 +92,8 @@
     text(g, W - RIGHT, plotBottom + 32, 't (ms)', { class: 'axis-label', 'text-anchor': 'end' });
 
     const hits = el('g', { class: 'hits' }, svg);
-    const marks = el('g', {}, svg);
+    // desenele nu prind mouse-ul, ca evenimentele să ajungă la dreptunghiurile .hit
+    const marks = el('g', { 'pointer-events': 'none' }, svg);
 
     tasks.forEach((task, ti) => {
       const y0 = rowY(ti), base = y0 + rowH - 10;
@@ -134,7 +135,11 @@
           el('line', { x1: x(j.d) + 1.5, x2: x(j.d) + 1.5, y1: base - 38, y2: base - 1,
             class: miss ? 'dl dl-miss' : 'dl', 'marker-end': miss ? 'url(#arrow-miss)' : 'url(#arrow-dl)',
             style: miss ? '' : `stroke:${color(ti)}` }, marks);
-          if (miss) text(marks, x(j.d) + 5, base - 30, '✕ ratat', { class: 'miss-label' });
+          if (miss) {
+            const atEnd = x(j.d) + 50 > W - RIGHT;
+            text(marks, x(j.d) + (atEnd ? -5 : 5), base - 30, '✕ ratat',
+              { class: 'miss-label', 'text-anchor': atEnd ? 'end' : 'start' });
+          }
         }
         const hx0 = x(Math.max(j.r, from)), hx1 = x(Math.min(Math.max(end, j.d), to));
         if (hx1 > hx0) {

@@ -75,3 +75,25 @@ test('nepreemptiv: jobul început nu este întrerupt', () => {
   assert.equal(r.jobs.find(j => j.task === 1).segments.length, 1);
   assert.equal(r.preemptions, 0);
 });
+
+test('RTA nu dă garanții sub un task aperiodic mai prioritar', () => {
+  const set = [P('diag', 3, 12, 30, { type: 'aperiodic', prio: 5 }), P('senzor', 2, 10, 10, { prio: 3 })];
+  const rta = S.analyse(set, 'FP').rta;
+  assert.equal(rta.length, 1);
+  assert.equal(rta[0].ok, false);
+  assert.deepEqual(rta[0].aperiodicAbove, [0]);
+});
+
+test('la aceeași prioritate câștigă taskul aflat mai sus în tabel', () => {
+  // b eliberat mai devreme, dar a este primul în tabel și are aceeași perioadă
+  const set = [P('a', 2, 10, 10, { offset: 1 }), P('b', 4, 10)];
+  const r = S.simulate(set, { policy: 'RM', horizon: 10 });
+  assert.equal(r.schedule[1], r.jobs.find(j => j.task === 0).id);
+});
+
+test('bifarea „C variabil” nu schimbă eliberările sporadice', () => {
+  const set = [P('s', 1, 10, 10, { type: 'sporadic' })];
+  const a = S.simulate(set, { horizon: 300, seed: 4 }).jobs.map(j => j.r);
+  const b = S.simulate(set, { horizon: 300, seed: 4, variableC: true }).jobs.map(j => j.r);
+  assert.deepEqual(a, b);
+});

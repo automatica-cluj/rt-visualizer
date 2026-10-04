@@ -412,8 +412,9 @@
         const t = sched.tasks[x.task];
         return `<tr><td><span class="sw" style="background:${color(x.task)}"></span>${esc(t.name)}</td>
           <td>${x.hp.length ? x.hp.map(j => esc(sched.tasks[j].name)).join(', ') : '—'}</td>
-          <td class="iter">${x.steps.join(' → ')}</td><td class="num">${x.R}</td><td class="num">${t.D}</td>
-          <td>${x.ok ? verdict('ok', 'R ≤ D') : verdict('bad', 'R > D')}</td></tr>`;
+          <td class="iter">${x.aperiodicAbove ? 'aperiodic mai prioritar: ' + x.aperiodicAbove.map(j => esc(sched.tasks[j].name)).join(', ') : x.steps.join(' → ')}</td>
+          <td class="num">${x.R === null ? '—' : x.R}</td><td class="num">${t.D}</td>
+          <td>${x.aperiodicAbove ? verdict('maybe', 'fără garanție') : (x.ok ? verdict('ok', 'R ≤ D') : verdict('bad', 'R > D'))}</td></tr>`;
       });
       out.push(`<p>Analiza timpului de răspuns (RTA), test exact pentru priorități fixe:
         R = C<sub>i</sub> + Σ<sub>j∈hp(i)</sub> ⌈R / T<sub>j</sub>⌉ C<sub>j</sub>, iterat până nu se mai schimbă.</p>
@@ -433,7 +434,7 @@
     } else {
       out.push('<p>' + verdict('maybe', 'fără garanții') + ' FIFO nu ține cont de termene: un job lung întârzie tot ce vine după el.</p>');
     }
-    if (an.hasAperiodic) out.push('<p class="note">Taskurile aperiodice nu intră în teste: nu au o margine a cererii de procesor.</p>');
+    if (an.hasAperiodic) out.push('<p class="note">Taskurile aperiodice nu intră în teste: nu au o margine a cererii de procesor. Un task periodic sau sporadic mai puțin prioritar decât unul aperiodic nu poate primi nicio garanție.</p>');
     if (sched.tasks.some(t => t.type === 'sporadic') || $('s-varC').checked) {
       out.push('<p class="note">Simularea arată o singură realizare; testele de mai sus acoperă cazul cel mai defavorabil (sporadic la intervalul minim, fiecare job cu C complet).</p>');
     }

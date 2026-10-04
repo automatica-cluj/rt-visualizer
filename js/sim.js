@@ -82,12 +82,14 @@
     const preemptive = opts.preemptive !== false && policy !== 'FIFO';
     const horizon = opts.horizon;
     const rand = rng(opts.seed || 1);
+    // generator separat pentru durate, ca bifarea „C variabil” să nu schimbe eliberările
+    const randC = rng((opts.seed || 1) * 7919 + 13);
     const jobs = [];
 
     tasks.forEach((task, ti) => {
       releases(task, horizon, rand).forEach((r, k) => {
         const exec = opts.variableC
-          ? Math.max(1, Math.round(task.C * (0.4 + 0.6 * rand())))
+          ? Math.max(1, Math.round(task.C * (0.4 + 0.6 * randC())))
           : task.C;
         jobs.push({
           id: jobs.length, task: ti, k, r, d: r + task.D, exec,
@@ -109,10 +111,10 @@
     // cheia de comparare: mai mică = aleasă prima
     function key(j, t) {
       switch (policy) {
-        case 'EDF': return [j.d, j.r, j.task];
+        case 'EDF': return [j.d, j.task, j.r];
         case 'LLF': return [(j.d - t) - j.rem, j === running ? 0 : 1, j.d, j.task];
         case 'FIFO': return [j.r, j.task];
-        default: return [-ranks[j.task], j.r, j.task];
+        default: return [-ranks[j.task], j.task, j.r];
       }
     }
     function less(a, b) {
@@ -226,11 +228,15 @@
 
     let rta = null;
     if (policy === 'RM' || policy === 'DM' || policy === 'FP') {
-      const idx = tasks.map((t, i) => i).filter(i => tasks[i].type !== 'aperiodic');
       const rank = i => staticRank(policy, tasks[i], i, tasks);
-      const order = idx.slice().sort((a, b) => rank(b) - rank(a) || a - b);
+      const all = tasks.map((t, i) => i).sort((a, b) => rank(b) - rank(a) || a - b);
+      const order = all.filter(i => tasks[i].type !== 'aperiodic');
       rta = order.map((i, pos) => {
         const t = tasks[i];
+        const above = all.slice(0, all.indexOf(i)).filter(j => tasks[j].type === 'aperiodic');
+        if (above.length) {
+          return { task: i, R: null, steps: [], ok: false, hp: order.slice(0, pos), aperiodicAbove: above };
+        }
         const hp = order.slice(0, pos).map(j => tasks[j]);
         const steps = [t.C];
         let R = t.C;
