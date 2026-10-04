@@ -38,6 +38,7 @@
    *  - aperiodic: intervale exponențiale cu media T, deci și rafale.
    */
   function releases(task, horizon, rand) {
+    if (task.releaseTimes) return task.releaseTimes.filter(t => t >= 0 && t < horizon);
     const out = [];
     let t = task.offset || 0;
     while (t < horizon) {
@@ -164,7 +165,14 @@
     // joburi neterminate al căror termen a trecut deja
     jobs.forEach(j => { if (j.finish === null && j.d <= horizon) j.missed = true; });
 
-    const stats = tasks.map((task, ti) => {
+    const stats = summarize(tasks, jobs);
+    const busy = schedule.filter(x => x !== null).length;
+    return { tasks, jobs, schedule, horizon, stats, busy, preemptions, policy, preemptive };
+  }
+
+  /** Statistici pe taskuri: joburi, ratări, timpi de răspuns, întârzieri la start. */
+  function summarize(tasks, jobs) {
+    return tasks.map((task, ti) => {
       const mine = jobs.filter(j => j.task === ti);
       const done = mine.filter(j => j.finish !== null);
       const R = done.map(j => j.finish - j.r);
@@ -180,8 +188,6 @@
         startJitter: L.length ? Math.max(...L) - Math.min(...L) : null
       };
     });
-    const busy = schedule.filter(x => x !== null).length;
-    return { tasks, jobs, schedule, horizon, stats, busy, preemptions, policy, preemptive };
   }
 
   /** Starea fiecărui task la momentul t (pentru panoul de sub diagramă). */
@@ -264,6 +270,137 @@
     return best;
   }
 
+
+  /* ---------------- vederile pe tipuri de task ---------------- */
+
+  /**
+   * Periodic: aceeași secvență de C_k și ε_k, cu așteptare absolută și relativă (2.3).
+   * Absolut: r_k = kT, s_k = max(r_k + ε_k, f_{k-1}). Relativ: trezirea w_{k+1} = f_k + T.
+   */
+  function periodicRelease(o) {
+    const rand = rng(o.seed || 1);
+    const Cs = [], eps = [];
+    for (let k = 0; k < o.n; k++) {
+      Cs.push(o.Cmin + Math.floor(rand() * (o.C - o.Cmin + 1)));
+      eps.push(Math.floor(rand() * (o.epsMax + 1)));
+    }
+    const abs = [], rel = [];
+    let prevF = -Infinity, wake = 0;
+    for (let k = 0; k < o.n; k++) {
+      const r = k * o.T;
+      const s = Math.max(r + eps[k], prevF);
+      const f = s + Cs[k];
+      abs.push({ k, grid: r, wake: r, s, f, C: Cs[k], eps: eps[k], L: s - r });
+      prevF = f;
+      const s2 = wake + eps[k], f2 = s2 + Cs[k];
+      rel.push({ k, grid: r, wake, s: s2, f: f2, C: Cs[k], eps: eps[k], L: s2 - r });
+      wake = f2 + o.T;
+    }
+    const jit = list => {
+      const L = list.map(x => x.L);
+      let relJ = 0;
+      for (let k = 1; k < L.length; k++) relJ = Math.max(relJ, Math.abs(L[k] - L[k - 1]));
+      return { J: Math.max(...L) - Math.min(...L), Jrel: relJ, maxL: Math.max(...L), last: L[L.length - 1],
+        period: L.length > 1 ? (list[list.length - 1].s - list[0].s) / (list.length - 1) : o.T };
+    };
+    return { abs, rel, absStats: jit(abs), relStats: jit(rel) };
+  }
+
+  /**
+   * Sporadic: ce se face cu evenimentele venite mai devreme decât intervalul minim (3.2, 5.4).
+   *  - none:   fiecare eveniment eliberează un job;
+   *  - ignore: evenimentele prea apropiate de ultimul acceptat sunt ignorate;
+   *  - defer:  eliberarea se amână până la ultimul job eliberat + Tmin.
+   */
+  function sporadicFilter(events, Tmin, policy) {
+    const out = [];
+    let last = -Infinity;
+    events.slice().sort((a, b) => a - b).forEach(e => {
+      if (policy === 'none') { out.push({ event: e, release: e, kind: 'ok' }); return; }
+      if (policy === 'ignore') {
+        if (e - last >= Tmin) { out.push({ event: e, release: e, kind: 'ok' }); last = e; }
+        else out.push({ event: e, release: null, kind: 'rejected' });
+        return;
+      }
+      const r = Math.max(e, last + Tmin);
+      out.push({ event: e, release: r, kind: r > e ? 'deferred' : 'ok' });
+      last = r;
+    });
+    return out;
+  }
+
+  /**
+   * Aperiodic: cererile sunt servite cu prioritate maximă, în fundal sau de un
+   * server cu buget Q reîncărcat la fiecare Ts (server amânabil, 3.2 și 4.8).
+   * Taskurile periodice au priorități RM. Întoarce un rezultat de forma lui simulate().
+   */
+  function simulateAperiodic(o) {
+    const { horizon } = o;
+    const tasks = o.tasks.map(t => ({ ...t }));
+    const jobs = [];
+    tasks.forEach((task, ti) => {
+      for (let r = task.offset || 0; r < horizon; r += task.T) {
+        jobs.push({ task: ti, k: jobs.filter(j => j.task === ti).length, r, d: r + task.D, exec: task.C });
+      }
+    });
+    const ai = tasks.length;
+    tasks.push({ name: 'cereri aperiodice', type: 'aperiodic', C: o.Ca, T: o.Ts || 1, D: Infinity, offset: 0, prio: 0 });
+    o.requests.slice().sort((a, b) => a.t - b.t).forEach((q, k) => {
+      if (q.t < horizon) jobs.push({ task: ai, k, r: q.t, d: Infinity, exec: q.C });
+    });
+    jobs.sort((a, b) => a.r - b.r || a.task - b.task);
+    jobs.forEach((j, i) => Object.assign(j, { id: i, rem: j.exec, start: null, finish: null,
+      missed: false, aborted: false, segments: [], preempted: 0 }));
+
+    const schedule = new Array(horizon).fill(null);
+    const budget = [];
+    let b = 0, next = 0, active = [], queue = [], running = null, preemptions = 0;
+    // rang: număr mai mare = mai prioritar; periodicele după RM
+    const rankPeriodic = j => -tasks[j.task].T;
+    for (let t = 0; t < horizon; t++) {
+      while (next < jobs.length && jobs[next].r === t) {
+        const j = jobs[next++];
+        (j.task === ai ? queue : active).push(j);
+      }
+      if (o.mode === 'server' && t % o.Ts === 0) b = o.Q;
+      let pick = null, best = -Infinity;
+      active.forEach(j => {
+        const r = rankPeriodic(j);
+        if (r > best || (r === best && j.task < pick.task)) { best = r; pick = j; }
+      });
+      if (queue.length) {
+        const head = queue[0];
+        let r = null;
+        if (o.mode === 'high') r = Infinity;
+        else if (o.mode === 'background') r = pick ? null : 0;
+        else if (b > 0) r = -o.Ts + 0.5; // la perioade egale, serverul câștigă
+        if (r !== null && (pick === null || r > best)) { pick = head; best = r; }
+      }
+      budget.push([t, b]);
+      if (!pick) { running = null; continue; }
+      if (running && running !== pick && running.rem > 0) { preemptions++; running.preempted++; }
+      running = pick;
+      schedule[t] = pick.id;
+      if (pick.start === null) pick.start = t;
+      const seg = pick.segments[pick.segments.length - 1];
+      if (seg && seg[1] === t) seg[1] = t + 1; else pick.segments.push([t, t + 1]);
+      pick.rem--;
+      if (pick.task === ai && o.mode === 'server') b--;
+      if (pick.rem === 0) {
+        pick.finish = t + 1;
+        if (pick.finish > pick.d) pick.missed = true;
+        if (pick.task === ai) queue.shift(); else active = active.filter(j => j !== pick);
+        running = null;
+      }
+    }
+    budget.push([horizon, b]);
+    jobs.forEach(j => { if (j.finish === null && j.d <= horizon) j.missed = true; });
+    const busy = schedule.filter(x => x !== null).length;
+    return { tasks, jobs, schedule, horizon, stats: summarize(tasks, jobs), busy, preemptions,
+      policy: 'RM', preemptive: true, budget };
+  }
+
   return { gcd, lcm, hyperperiod, rng, releases, simulate, stateAt,
-    laxitySeries, analyse, densestWindow, POLICIES };
+    laxitySeries, analyse, densestWindow, POLICIES, summarize,
+    periodicRelease, sporadicFilter, simulateAperiodic };
 });

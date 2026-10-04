@@ -97,3 +97,43 @@ test('bifarea „C variabil” nu schimbă eliberările sporadice', () => {
   const b = S.simulate(set, { horizon: 300, seed: 4, variableC: true }).jobs.map(j => j.r);
   assert.deepEqual(a, b);
 });
+
+test('periodic: așteptarea relativă derivă cu C pe perioadă, cea absolută nu (2.3)', () => {
+  const r = S.periodicRelease({ C: 3, Cmin: 3, T: 10, epsMax: 0, n: 301, seed: 1 });
+  assert.equal(r.rel[300].s, 3900);
+  assert.equal(r.relStats.last, 900);
+  assert.equal(r.abs[300].s, 3000);
+  assert.equal(r.absStats.J, 0);
+});
+
+test('periodic: cu așteptare absolută o întârziere nu se propagă', () => {
+  const r = S.periodicRelease({ C: 3, Cmin: 1, T: 10, epsMax: 4, n: 50, seed: 3 });
+  r.abs.forEach(j => assert.ok(j.L <= 4));
+  assert.ok(r.absStats.Jrel <= r.absStats.J);
+});
+
+test('sporadic: ignorare și amânare impun intervalul minim', () => {
+  const ev = [0, 2, 3, 15, 16, 40];
+  const ign = S.sporadicFilter(ev, 10, 'ignore');
+  assert.deepEqual(ign.filter(x => x.kind === 'ok').map(x => x.release), [0, 15, 40]);
+  const def = S.sporadicFilter(ev, 10, 'defer');
+  assert.deepEqual(def.map(x => x.release), [0, 10, 20, 30, 40, 50]);
+  assert.equal(S.sporadicFilter(ev, 10, 'none').length, 6);
+});
+
+test('aperiodic: în fundal nu afectează periodicele, cu prioritate maximă le poate face să rateze', () => {
+  const tasks = [{ name: 'p', type: 'periodic', C: 3, T: 10, D: 10, offset: 0 }];
+  const requests = [0, 1, 2, 3].map(t => ({ t, C: 3 }));
+  const base = { tasks, requests, Ca: 3, Ts: 10, Q: 3, horizon: 40 };
+  const bg = S.simulateAperiodic({ ...base, mode: 'background' });
+  assert.equal(bg.stats[0].missed, 0);
+  const hi = S.simulateAperiodic({ ...base, mode: 'high' });
+  assert.ok(hi.stats[0].missed > 0);
+  const srv = S.simulateAperiodic({ ...base, mode: 'server' });
+  assert.equal(srv.stats[0].missed, 0);
+  // serverul nu consumă mai mult de Q în nicio perioadă Ts
+  for (let k = 0; k < 4; k++) {
+    const used = srv.schedule.slice(k * 10, k * 10 + 10).filter(id => id !== null && srv.jobs[id].task === 1).length;
+    assert.ok(used <= 3);
+  }
+});

@@ -63,8 +63,10 @@
     const rowH = 50;
     const ann = opts.annotate;
     const annTop = ann ? 58 : 0, annBottom = ann ? 30 : 0;
-    const rows = tasks.length + (opts.cpuRow ? 1 : 0);
+    const evRows = opts.eventRows || [];
+    const rows = evRows.length + tasks.length + (opts.cpuRow ? 1 : 0);
     const top = 12;
+    const taskTop = top + evRows.length * rowH;
     const H = top + rows * rowH + annTop + annBottom + 34;
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     svg.setAttribute('width', W);
@@ -73,7 +75,7 @@
 
     const scale = (W - LEFT - RIGHT) / (to - from);
     const x = t => LEFT + (t - from) * scale;
-    const rowY = i => top + i * rowH + (ann && i > ann.task ? annTop + annBottom : 0) +
+    const rowY = i => taskTop + i * rowH + (ann && i > ann.task ? annTop + annBottom : 0) +
       (ann && i === ann.task ? annTop : 0);
     const plotBottom = top + rows * rowH + annTop + annBottom;
 
@@ -90,17 +92,49 @@
       text(g, x(t), plotBottom + 18, String(t), { class: 'axis-label', 'text-anchor': 'middle' });
     }
     text(g, W - RIGHT, plotBottom + 32, 't (ms)', { class: 'axis-label', 'text-anchor': 'end' });
+    // grila ideală a unui task periodic: r_k = kT
+    if (opts.gridEvery) {
+      for (let t = Math.ceil(from / opts.gridEvery) * opts.gridEvery; t <= to; t += opts.gridEvery) {
+        el('line', { x1: x(t), x2: x(t), y1: top, y2: plotBottom, class: 'grid-ideal' }, g);
+      }
+    }
 
     const hits = el('g', { class: 'hits' }, svg);
     // desenele nu prind mouse-ul, ca evenimentele să ajungă la dreptunghiurile .hit
     const marks = el('g', { 'pointer-events': 'none' }, svg);
+    const tips = [];
+    svg._tips = tips;
+    const tipHit = (x0, x1, y0, html) => {
+      tips.push(html);
+      el('rect', { x: x0, y: y0, width: Math.max(x1 - x0, 8), height: rowH - 4, class: 'hit', 'data-tip': tips.length - 1 }, hits);
+    };
+
+    // rânduri de evenimente (de exemplu, apăsările unui buton), deasupra taskurilor
+    evRows.forEach((row, ri) => {
+      const y0 = top + ri * rowH, base = y0 + rowH - 10;
+      text(marks, 10, base - 15, row.label, { class: 'row-label' });
+      if (row.sub) text(marks, 10, base - 1, row.sub, { class: 'row-sub' });
+      el('line', { x1: LEFT, x2: W - RIGHT, y1: base, y2: base, class: 'baseline' }, marks);
+      row.marks.forEach(m => {
+        if (m.t < from || m.t > to) return;
+        const cx = x(m.t);
+        if (m.to !== undefined && m.to > m.t) {
+          el('line', { x1: cx, x2: x(Math.min(m.to, to)), y1: base - 6, y2: base - 6,
+            class: 'defer-line', 'marker-end': 'url(#arrow-rel)' }, marks);
+        }
+        el('line', { x1: cx, x2: cx, y1: base, y2: base - 22, class: m.kind === 'rejected' ? 'ev-stem ev-rej' : 'ev-stem' }, marks);
+        if (m.kind === 'rejected') text(marks, cx, base - 25, '✕', { class: 'ev-x', 'text-anchor': 'middle' });
+        else el('circle', { cx, cy: base - 24, r: 4, class: m.kind === 'deferred' ? 'ev-dot ev-def' : 'ev-dot' }, marks);
+        if (m.tip) tipHit(cx - 5, (m.to !== undefined ? x(Math.min(m.to, to)) : cx) + 5, y0 + 2, m.tip);
+      });
+    });
 
     tasks.forEach((task, ti) => {
       const y0 = rowY(ti), base = y0 + rowH - 10;
       const lbl = opts.rowLabels ? opts.rowLabels[ti] : task.name;
       el('rect', { x: 10, y: base - 24, width: 10, height: 10, rx: 2, style: `fill:${color(ti)}` }, marks);
       text(marks, 26, base - 15, lbl, { class: 'row-label' });
-      text(marks, 26, base - 1, paramLabel(task), { class: 'row-sub' });
+      text(marks, 26, base - 1, opts.rowSubs ? opts.rowSubs[ti] : paramLabel(task), { class: 'row-sub' });
       el('line', { x1: LEFT, x2: W - RIGHT, y1: base, y2: base, class: 'baseline' }, marks);
 
       result.jobs.filter(j => j.task === ti).forEach(j => {
@@ -141,7 +175,7 @@
               { class: 'miss-label', 'text-anchor': atEnd ? 'end' : 'start' });
           }
         }
-        const hx0 = x(Math.max(j.r, from)), hx1 = x(Math.min(Math.max(end, j.d), to));
+        const hx0 = x(Math.max(j.r, from)), hx1 = x(Math.min(isFinite(j.d) ? Math.max(end, j.d) : end, to));
         if (hx1 > hx0) {
           el('rect', { x: hx0, y: y0 + 2, width: hx1 - hx0, height: rowH - 4,
             class: 'hit', 'data-job': j.id }, hits);
@@ -307,6 +341,46 @@
     });
   }
 
+
+  /**
+   * Histogramă simplă: cfg = { bins: [{ label, value, tip }], color, height, xLabel, yLabel }.
+   */
+  function barChart(svg, cfg) {
+    clear(svg);
+    const W = Math.max(svg.parentNode.clientWidth || 600, 320);
+    const H = cfg.height || 180, top = 24, bottom = 34, left = 48, right = 12;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('width', W);
+    svg.setAttribute('height', H);
+    const n = cfg.bins.length;
+    const max = Math.max(1, ...cfg.bins.map(b => b.value));
+    const bw = (W - left - right) / n;
+    const y = v => H - bottom - v * (H - top - bottom) / max;
+    const g = el('g', {}, svg);
+    [0, Math.ceil(max / 2), max].forEach(v => {
+      el('line', { x1: left, x2: W - right, y1: y(v), y2: y(v), class: v === 0 ? 'baseline' : 'grid-major' }, g);
+      text(g, left - 6, y(v) + 4, String(v), { class: 'axis-label', 'text-anchor': 'end' });
+    });
+    if (cfg.yLabel) text(g, left, 12, cfg.yLabel, { class: 'row-sub' });
+    if (cfg.xLabel) text(g, W - right, H - 4, cfg.xLabel, { class: 'axis-label', 'text-anchor': 'end' });
+    const every = Math.ceil(n / Math.max(1, Math.floor((W - left - right) / 28)));
+    cfg.bins.forEach((b, i) => {
+      const x0 = left + i * bw;
+      if (b.value > 0) {
+        const h = H - bottom - y(b.value);
+        el('path', { d: roundTop(x0 + 1, y(b.value), Math.max(bw - 2, 1), h, Math.min(4, bw / 3, h)),
+          style: `fill:${cfg.color}` }, g);
+      }
+      if (i % every === 0) text(g, x0 + bw / 2, H - bottom + 16, b.label, { class: 'axis-label', 'text-anchor': 'middle' });
+      const hit = el('rect', { x: x0, y: top, width: bw, height: H - top - bottom, class: 'hit-area' }, svg);
+      hit.addEventListener('mousemove', ev => root.RTTip.show(ev, b.tip || `${b.label}: <b>${b.value}</b>`));
+      hit.addEventListener('mouseleave', () => root.RTTip.hide());
+    });
+  }
+  function roundTop(x, y, w, h, r) {
+    return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+  }
+
   /** Tooltip comun tuturor graficelor. */
   const RTTip = {
     node: null,
@@ -328,6 +402,6 @@
     hide() { if (this.node) this.node.style.display = 'none'; }
   };
 
-  root.RTRender = { gantt, lineChart, color };
+  root.RTRender = { gantt, lineChart, barChart, color };
   root.RTTip = RTTip;
 })(window);

@@ -12,7 +12,7 @@
   /* ---------- formule scurte în text: $C_i$ -> C<sub>i</sub> ---------- */
   function tex(s) {
     return '<span class="m">' + s
-      .replace(/\\le/g, '≤').replace(/\\sum/g, 'Σ').replace(/\\tau/g, 'τ')
+      .replace(/\\varepsilon/g, 'ε').replace(/\\le/g, '≤').replace(/\\sum/g, 'Σ').replace(/\\tau/g, 'τ')
       .replace(/\\bar T/g, 'T̄').replace(/\\cdot/g, '·')
       .replace(/_\{([^}]*)\}/g, '<sub>$1</sub>').replace(/_(\w)/g, '<sub>$1</sub>')
       .replace(/\^\{([^}]*)\}/g, '<sup>$1</sup>') + '</span>';
@@ -59,12 +59,15 @@
   /* ---------- tooltip pentru joburi ---------- */
   function jobTip(result, svg) {
     svg.onmousemove = ev => {
+      const tipId = ev.target.getAttribute && ev.target.getAttribute('data-tip');
+      if (tipId !== null && tipId !== undefined && svg._tips) { Tip.show(ev, svg._tips[+tipId]); return; }
       const id = ev.target.getAttribute && ev.target.getAttribute('data-job');
       if (id === null || id === undefined) { Tip.hide(); return; }
       const j = result.jobs[+id], t = result.tasks[j.task];
+      if (j.tip) { Tip.show(ev, j.tip); return; }
       const rows = [
         `<span class="sw" style="background:${color(j.task)}"></span><b>${esc(t.name)}</b>, jobul ${j.k} (${TYPE[t.type]})`,
-        `eliberare r = ${j.r}, termen d = ${j.d}`,
+        isFinite(j.d) ? `eliberare r = ${j.r}, termen d = ${j.d}` : `sosire r = ${j.r}, fără termen-limită`,
         `timp de calcul: ${j.exec}${j.exec !== t.C ? ` (C = ${t.C})` : ''}`,
         j.start !== null ? `început la ${j.start}, întârziere ${j.start - j.r}` : 'nu a început',
         j.finish !== null ? `terminat la ${j.finish}, R = ${j.finish - j.r}` : (j.aborted ? 'abandonat la termen' : 'neterminat în orizont'),
@@ -182,7 +185,7 @@
       <th>Utilizare garantată C/T</th></tr></thead><tbody>${rows.join('')}</tbody>`;
   }
 
-  /* ===================== 3. Planificare și încărcare ===================== */
+  /* ===================== 4. Planificare și încărcare ===================== */
   const sched = { tasks: [], seed: 1, cursor: 0, timer: null, result: null };
   const presets = window.RTPresets;
   $('s-preset').innerHTML = presets.map(p => `<option value="${p.id}">${esc(p.title)}</option>`).join('') +
@@ -441,6 +444,285 @@
     $('s-analysis').innerHTML = out.join('');
   }
 
+
+  /* ===================== 3. Fiecare tip în detaliu ===================== */
+  const TY_H = 200;
+  let tyType = 'periodic';
+
+  /** Înregistrare „în timp real”: timpul curge 20 ms simulate pe secundă. */
+  function Recorder(onChange, clockId, label) {
+    const r = { events: [], now: TY_H, running: false, timer: null };
+    r.start = () => {
+      r.stop(); r.events = []; r.now = 0; r.running = true;
+      r.timer = setInterval(() => {
+        r.now++;
+        if (r.now >= TY_H) r.stop();
+        onChange();
+      }, 50);
+    };
+    r.stop = () => {
+      clearInterval(r.timer); r.timer = null;
+      if (r.running) { r.running = false; r.now = TY_H; }
+      updateClock();
+    };
+    r.add = times => {
+      if (!r.running) r.start();
+      times.forEach(t => { if (t < TY_H) r.events.push(t); });
+      onChange();
+    };
+    r.set = times => { r.stop(); r.events = times.slice(); r.now = TY_H; onChange(); };
+    function updateClock() {
+      $(clockId).textContent = r.running
+        ? `Înregistrare în curs: t = ${r.now} din ${TY_H} ms. ${label}`
+        : `Primul clic pe „${$(clockId).dataset.btn}” pornește o înregistrare nouă de ${TY_H} ms.`;
+    }
+    r.tick = updateClock;
+    return r;
+  }
+  $('sp-clock').dataset.btn = 'Apasă butonul';
+  $('ap-clock').dataset.btn = 'Trimite o cerere';
+
+  /* ---------- periodic ---------- */
+  let pSeed = 5;
+  const pv = {};
+  ['T', 'C', 'Cmin', 'eps', 'n'].forEach(k => { pv[k] = bindRange('p-' + k, renderPeriodic); });
+  $('p-seed').addEventListener('click', () => { pSeed++; renderPeriodic(); });
+
+  function renderPeriodic() {
+    const T = pv.T(), C = pv.C(), Cmin = Math.min(pv.Cmin(), C), n = pv.n();
+    const res = S.periodicRelease({ T, C, Cmin, epsMax: pv.eps(), n, seed: pSeed });
+    const mk = (list, ti) => list.map(j => ({
+      id: 0, task: ti, k: j.k, r: j.wake, d: Infinity, exec: j.C, start: j.s, finish: j.f,
+      segments: [[j.s, j.f]], missed: false, aborted: false, preempted: 0,
+      tip: `<span class="sw" style="background:${color(ti)}"></span><b>${ti ? 'așteptare relativă' : 'așteptare absolută'}</b>, jobul ${j.k}<br>` +
+        `punct pe grilă r = ${j.grid}<br>trezire la ${j.wake}${ti ? ` (terminarea precedentă + T)` : ''}<br>` +
+        `ε = ${j.eps}, pornire s = ${j.s}, C = ${j.C}<br><b>L = s − r = ${j.L}</b>`
+    }));
+    const jobs = mk(res.abs, 0).concat(mk(res.rel, 1));
+    jobs.forEach((j, i) => { j.id = i; });
+    const horizon = Math.max(...jobs.map(j => j.finish)) + 2;
+    const tasks = [
+      { name: 'absolută', type: 'periodic', C, T, D: Infinity },
+      { name: 'relativă', type: 'periodic', C, T, D: Infinity }
+    ];
+    const result = { tasks, jobs, horizon, schedule: [], busy: 0 };
+    R.gantt($('p-gantt'), result, {
+      gridEvery: T, jobLabels: true,
+      rowSubs: ['trezire la rₖ = kT', 'trezire la fₖ + T']
+    });
+    jobTip(result, $('p-gantt'));
+
+    const a = res.absStats, r = res.relStats;
+    $('p-cards').innerHTML = [
+      card('Absolut: jitter J', String(a.J), `max L = ${a.maxL}, min L = ${a.maxL - a.J}`),
+      card('Absolut: jitter relativ', String(a.Jrel), 'cel mai mare salt între joburi'),
+      card('Absolut: deriva', '0', verdict('ok', 'grila rămâne pe loc')),
+      card(`Relativ: deriva după ${n} joburi`, String(r.last), r.last > 0 ? verdict('bad', 'crește la fiecare job') : 'fără calcul, fără derivă'),
+      card('Relativ: perioada reală medie', fmt2(r.period), `în loc de T = ${T}`),
+      card('Frecvența', `${fmt2(1000 / r.period)} Hz`, `în loc de ${fmt2(1000 / T)} Hz`)
+    ].join('');
+
+    R.lineChart($('p-lat'), {
+      series: [
+        { name: 'absolut', color: color(0), points: res.abs.map(j => [j.k, j.L]) },
+        { name: 'relativ', color: color(1), points: res.rel.map(j => [j.k, j.L]) }
+      ],
+      xMax: n - 1, yMin: 0, yMax: Math.max(4, r.maxL, a.maxL), height: 220,
+      yTicks: [0, Math.round(Math.max(4, r.maxL, a.maxL) / 2), Math.max(4, r.maxL, a.maxL)],
+      xLabel: 'jobul k', yLabel: 'L (ms)'
+    });
+    $('p-lat-legend').innerHTML = ['absolut', 'relativ'].map((nm, i) =>
+      `<span><span class="sw" style="background:${color(i)}"></span>${nm}</span>`).join('');
+    const counts = [];
+    for (let v = 0; v <= a.maxL; v++) counts.push(res.abs.filter(j => j.L === v).length);
+    R.barChart($('p-hist'), {
+      bins: counts.map((c, v) => ({ label: String(v), value: c, tip: `L = ${v} ms: <b>${c}</b> joburi` })),
+      color: color(0), height: 220, xLabel: 'L (ms)', yLabel: 'joburi'
+    });
+  }
+
+  /* ---------- sporadic ---------- */
+  const SP_DEMO = [12, 13, 14, 15, 16, 48, 70, 75, 118, 160, 163];
+  const sv = {};
+  ['C', 'T', 'D', 'pC', 'pT'].forEach(k => { sv[k] = bindRange('sp-' + k, renderSporadic); });
+  $('sp-policy').addEventListener('change', renderSporadic);
+  const spRec = Recorder(renderSporadic, 'sp-clock', 'Apăsați butonul sau tasta spațiu.');
+  spRec.events = SP_DEMO.slice(); // se desenează când fila devine vizibilă
+  $('sp-press').addEventListener('click', () => spRec.add([spRec.running ? spRec.now : 0]));
+  $('sp-burst').addEventListener('click', () => {
+    const t0 = spRec.running ? spRec.now : 0;
+    spRec.add([0, 1, 2, 3, 4].map(d => t0 + d));
+  });
+  $('sp-random').addEventListener('click', () => {
+    const rand = S.rng(Date.now() & 0xffff), out = [];
+    let t = Math.floor(rand() * 10);
+    while (t < TY_H) {
+      out.push(t);
+      if (rand() < 0.2) { for (let d = 1; d <= 3; d++) out.push(t + d); t += 3; }
+      t += Math.max(1, Math.round(-Math.log(1 - rand()) * sv.T()));
+    }
+    spRec.set(out.filter(x => x < TY_H));
+  });
+  $('sp-demo').addEventListener('click', () => spRec.set(SP_DEMO));
+
+  function renderSporadic() {
+    spRec.tick();
+    const C = sv.C(), Tmin = sv.T(), D = sv.D(), pol = $('sp-policy').value;
+    const filt = S.sporadicFilter(spRec.events, Tmin, pol);
+    const rels = filt.filter(f => f.release !== null && f.release < TY_H);
+    const tasks = [
+      { name: 'buton', type: 'sporadic', C, T: Tmin, D, offset: 0, prio: 2, releaseTimes: rels.map(f => f.release) },
+      { name: 'reglaj', type: 'periodic', C: sv.pC(), T: sv.pT(), D: sv.pT(), offset: 0, prio: 1 }
+    ];
+    const res = S.simulate(tasks, { policy: 'FP', horizon: TY_H });
+    const btnJobs = res.jobs.filter(j => j.task === 0).sort((x, y) => x.k - y.k);
+    btnJobs.forEach((j, i) => {
+      const ev = rels[i].event;
+      j.tip = `<span class="sw" style="background:${color(0)}"></span><b>buton</b>, jobul ${j.k}<br>` +
+        `eveniment la ${ev}${j.r > ev ? `, eliberare amânată la ${j.r}` : ''}<br>termen d = ${j.d}<br>` +
+        (j.finish !== null ? `terminat la ${j.finish}: ${j.finish - ev} ms de la eveniment` : 'neterminat') +
+        (j.missed ? '<br><b class="bad">✕ termen ratat</b>' : '');
+    });
+    const kindTxt = { ok: 'a eliberat un job', rejected: 'ignorat: prea aproape de precedentul', deferred: 'eliberare amânată' };
+    const marks = filt.map(f => ({
+      t: f.event, kind: f.kind, to: f.kind === 'deferred' ? Math.min(f.release, TY_H) : undefined,
+      tip: `eveniment la ${f.event}: <b>${kindTxt[f.kind]}</b>${f.kind === 'deferred' ? ` până la ${f.release}` : ''}`
+    }));
+    R.gantt($('sp-gantt'), res, {
+      eventRows: [{ label: 'evenimente', sub: `${spRec.events.length} apăsări`, marks }],
+      cpuRow: true, cursor: spRec.running ? spRec.now : null
+    });
+    jobTip(res, $('sp-gantt'));
+
+    const relT = rels.map(f => f.release);
+    let minGap = Infinity;
+    for (let i = 1; i < relT.length; i++) minGap = Math.min(minGap, relT[i] - relT[i - 1]);
+    const rejected = filt.filter(f => f.kind === 'rejected').length;
+    const deferred = filt.filter(f => f.kind === 'deferred').length;
+    const lat = btnJobs.filter(j => j.finish !== null).map((j, i) => j.finish - rels[i].event);
+    const okGap = minGap >= Tmin;
+    $('sp-cards').innerHTML = [
+      card('Evenimente', String(spRec.events.length), `${relT.length} joburi eliberate`),
+      card('Ignorate / amânate', `${rejected} / ${deferred}`, pol === 'none' ? 'nu se impune nimic' : 'impus de cod'),
+      card('Cel mai mic interval între eliberări', isFinite(minGap) ? String(minGap) : '—',
+        isFinite(minGap) ? (okGap ? verdict('ok', `≥ Tmin = ${Tmin}`) : verdict('bad', `< Tmin = ${Tmin}`)) : ''),
+      card('Termene ratate „reglaj”', `${res.stats[1].missed} din ${res.stats[1].jobs}`,
+        res.stats[1].missed ? verdict('bad', 'reglajul plătește') : verdict('ok', 'toate la timp')),
+      card('Termene ratate „buton”', `${res.stats[0].missed} din ${res.stats[0].jobs}`, ''),
+      card('Cel mai lung timp de la eveniment la terminare', lat.length ? String(Math.max(...lat)) : '—',
+        deferred ? 'include amânarea' : `D = ${D}`)
+    ].join('');
+
+    const an = S.analyse(tasks.map(t => ({ ...t, releaseTimes: undefined })), 'FP');
+    const rows = an.rta.map(x => `<tr><td><span class="sw" style="background:${color(x.task)}"></span>${esc(tasks[x.task].name)}</td>
+      <td class="iter">${x.steps.join(' → ')}</td><td class="num">${x.R}</td><td class="num">${tasks[x.task].D}</td>
+      <td>${x.ok ? verdict('ok', 'R ≤ D') : verdict('bad', 'R > D')}</td></tr>`).join('');
+    const allOk = an.rta.every(x => x.ok);
+    let concl;
+    if (!allOk) concl = verdict('bad', 'setul nu este planificabil') + ' nici dacă intervalul minim ar fi respectat: micșorați C sau măriți Tmin.';
+    else if (!isFinite(minGap) || okGap) concl = verdict('ok', 'garanția este valabilă') + ' în înregistrarea de mai sus: eliberările respectă intervalul minim.';
+    else concl = verdict('bad', 'garanția nu mai este valabilă') +
+      ` în înregistrarea de mai sus: două eliberări la doar ${minGap} ms una de alta, mai puțin decât Tmin = ${Tmin}. ` +
+      'Analiza a fost corectă, dar ipoteza ei nu a fost impusă.';
+    $('sp-analysis').innerHTML = `<p>Analiza tratează butonul ca pe un task periodic cu perioada $T_{min}$ și prioritate mai mare decât reglajul.
+      U = ${fmt3(an.U)}.</p>
+      <div class="table-wrap"><table><thead><tr><th>Task</th><th>Iterații RTA</th><th>R</th><th>D</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+      <p>${concl}</p>`.replace(/\$([^$]+)\$/g, (m, g) => tex(g));
+  }
+
+  /* ---------- aperiodic ---------- */
+  const AP_DEMO = [20, 21, 22, 23, 70, 120, 121, 160];
+  const AP_TASKS = [
+    { name: 'senzor', type: 'periodic', C: 2, T: 8, D: 8, offset: 0, prio: 2 },
+    { name: 'comandă', type: 'periodic', C: 3, T: 12, D: 12, offset: 0, prio: 1 }
+  ];
+  const av = {};
+  ['C', 'Q', 'Ts'].forEach(k => { av[k] = bindRange('ap-' + k, renderAperiodic); });
+  $('ap-mode').addEventListener('change', renderAperiodic);
+  const apRec = Recorder(renderAperiodic, 'ap-clock', 'Trimiteți cereri.');
+  apRec.events = AP_DEMO.slice();
+  $('ap-press').addEventListener('click', () => apRec.add([apRec.running ? apRec.now : 0]));
+  $('ap-burst').addEventListener('click', () => {
+    const t0 = apRec.running ? apRec.now : 0;
+    apRec.add([0, 1, 2, 3].map(d => t0 + d));
+  });
+  $('ap-random').addEventListener('click', () => {
+    const rand = S.rng(Date.now() & 0xffff), out = [];
+    let t = Math.floor(rand() * 10);
+    while (t < TY_H) { out.push(t); t += Math.max(1, Math.round(-Math.log(1 - rand()) * 14)); }
+    apRec.set(out);
+  });
+  $('ap-demo').addEventListener('click', () => apRec.set(AP_DEMO));
+
+  const AP_NOTES = {
+    high: 'Cererile trec înaintea tuturor: răspund repede, dar o rafală ține procesorul ocupat oricât de mult, iar taskurile periodice își ratează termenele. Niciun test nu poate da garanții.',
+    background: 'Cererile rulează doar când niciun task periodic nu are de lucru: taskurile periodice sunt protejate complet, dar cererile așteaptă mult, mai ales când procesorul este încărcat.',
+    server: 'Cererile primesc un buget Q la fiecare Ts, cu prioritatea dată de Ts (ca la RM). Cât timp bugetul nu e epuizat, cererile răspund repede; apoi așteaptă reîncărcarea. Pentru analiză, serverul se comportă aproximativ ca un task periodic (Q, Ts), deci cererea lui de procesor are o margine.'
+  };
+
+  function renderAperiodic() {
+    apRec.tick();
+    const mode = $('ap-mode').value, Ca = av.C(), Ts = av.Ts(), Q = Math.min(av.Q(), Ts);
+    ['ap-Q', 'ap-Ts'].forEach(id => { $(id).disabled = mode !== 'server'; });
+    $('ap-mode-note').textContent = AP_NOTES[mode];
+    const res = S.simulateAperiodic({
+      tasks: AP_TASKS, requests: apRec.events.map(t => ({ t, C: Ca })), Ca, mode, Q, Ts, horizon: TY_H
+    });
+    const ai = AP_TASKS.length;
+    const reqs = res.jobs.filter(j => j.task === ai);
+    reqs.forEach(j => {
+      j.tip = `<span class="sw" style="background:${color(ai)}"></span><b>cererea ${j.k}</b><br>sosire la ${j.r}, C = ${j.exec}<br>` +
+        (j.start !== null ? `început la ${j.start} (după ${j.start - j.r} ms)<br>` : '') +
+        (j.finish !== null ? `<b>terminată la ${j.finish}: R = ${j.finish - j.r}</b>` : 'neterminată în orizont');
+    });
+    R.gantt($('ap-gantt'), res, {
+      cpuRow: true, cursor: apRec.running ? apRec.now : null,
+      rowSubs: AP_TASKS.map(t => `C=${t.C}, T=${t.T}`).concat([`C=${Ca}, ${reqs.length} cereri`])
+    });
+    jobTip(res, $('ap-gantt'));
+
+    $('ap-budget-fig').hidden = mode !== 'server';
+    if (mode === 'server') {
+      R.lineChart($('ap-budget'), {
+        series: [{ name: 'buget rămas', color: color(ai), points: res.budget, step: true }],
+        xMax: TY_H, yMin: 0, yMax: Q, yTicks: Q > 1 ? [0, Q] : [0, 1], height: 150,
+        cursor: apRec.running ? apRec.now : null, xLabel: 't (ms)', yLabel: 'buget'
+      });
+    }
+    const R_ = reqs.filter(j => j.finish !== null).map(j => j.finish - j.r);
+    const pm = res.stats.slice(0, ai).reduce((a, x) => a + x.missed, 0);
+    const pj = res.stats.slice(0, ai).reduce((a, x) => a + x.jobs, 0);
+    const Up = AP_TASKS.reduce((a, t) => a + t.C / t.T, 0);
+    $('ap-cards').innerHTML = [
+      card('Termene ratate, taskuri periodice', `${pm} din ${pj}`, pm ? verdict('bad', 'periodicele plătesc') : verdict('ok', 'toate la timp')),
+      card('Timp de răspuns mediu al cererilor', R_.length ? fmt2(R_.reduce((a, b) => a + b, 0) / R_.length) : '—', `${R_.length} din ${reqs.length} terminate`),
+      card('Cel mai lung timp de răspuns', R_.length ? String(Math.max(...R_)) : '—', `C = ${Ca} pe cerere`),
+      card('Utilizarea periodicelor', fmt2(Up), 'senzor + comandă'),
+      card('Rezervat pentru cereri', mode === 'server' ? fmt2(Q / Ts) : (mode === 'high' ? 'nelimitat' : 'doar timpul liber'),
+        mode === 'server' ? `Q/Ts; total ${fmt2(Up + Q / Ts)}` : '')
+    ].join('');
+  }
+
+  function showType(type) {
+    if (!['periodic', 'sporadic', 'aperiodic'].includes(type)) type = 'periodic';
+    tyType = type;
+    document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.type === type));
+    ['periodic', 'sporadic', 'aperiodic'].forEach(t => { $('ty-' + t).hidden = t !== type; });
+    if (type !== 'sporadic') spRec.stop();
+    if (type !== 'aperiodic') apRec.stop();
+    ({ periodic: renderPeriodic, sporadic: renderSporadic, aperiodic: renderAperiodic })[type]();
+  }
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+    history.replaceState(null, '', '#types/' + b.dataset.type);
+    showType(b.dataset.type);
+  }));
+  document.addEventListener('keydown', ev => {
+    if (ev.code !== 'Space' || current !== 'types' || tyType !== 'sporadic') return;
+    if (/INPUT|SELECT|TEXTAREA|BUTTON/.test(document.activeElement.tagName)) return;
+    ev.preventDefault();
+    $('sp-press').click();
+  });
+
   /* ===================== Legendă: exemplu adnotat ===================== */
   function renderHelp() {
     const res = S.simulate([
@@ -452,7 +734,7 @@
   }
 
   /* ===================== file și adresă ===================== */
-  const renderers = { model: renderModel, arrivals: renderArrivals, sched: () => runSched(), help: renderHelp };
+  const renderers = { model: renderModel, arrivals: renderArrivals, types: () => showType(tyType), sched: () => runSched(), help: renderHelp };
   let current = 'model';
   function show(tab) {
     if (!renderers[tab]) tab = 'model';
@@ -460,16 +742,19 @@
     document.querySelectorAll('[role=tab]').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === tab));
     document.querySelectorAll('.tab').forEach(s => { s.hidden = s.id !== 'tab-' + tab; });
     if (tab !== 'sched') stopPlay();
+    if (tab !== 'types') { spRec.stop(); apRec.stop(); }
     renderers[tab]();
   }
   document.querySelectorAll('[role=tab]').forEach(b => b.addEventListener('click', () => {
     const tab = b.dataset.tab;
-    history.replaceState(null, '', '#' + (tab === 'sched' && $('s-preset').value !== 'custom' ? 'sched/' + $('s-preset').value : tab));
+    const sub = tab === 'sched' && $('s-preset').value !== 'custom' ? '/' + $('s-preset').value : (tab === 'types' ? '/' + tyType : '');
+    history.replaceState(null, '', '#' + tab + sub);
     show(tab);
   }));
   function fromHash() {
     const [tab, preset] = location.hash.replace('#', '').split('/');
-    loadPresetSilently(preset);
+    if (tab === 'types' && preset) tyType = preset;
+    loadPresetSilently(tab === 'sched' ? preset : null);
     show(tab || 'model');
   }
   function loadPresetSilently(id) {

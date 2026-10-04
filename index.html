@@ -19,7 +19,8 @@
 <nav class="tabs" role="tablist">
   <button role="tab" data-tab="model" aria-selected="true">1. Modelul de task</button>
   <button role="tab" data-tab="arrivals">2. Periodic, sporadic, aperiodic</button>
-  <button role="tab" data-tab="sched">3. Planificare și încărcare</button>
+  <button role="tab" data-tab="types">3. Fiecare tip în detaliu</button>
+  <button role="tab" data-tab="sched">4. Planificare și încărcare</button>
   <button role="tab" data-tab="help">Legendă</button>
 </nav>
 
@@ -90,7 +91,151 @@
       Taskul aperiodic nu are o astfel de margine: o rafală poate aduce oricâte eliberări într-o fereastră.</p>
   </section>
 
-  <!-- 3. Planificare ------------------------------------------------------>
+
+  <!-- 3. Fiecare tip în detaliu ------------------------------------------>
+  <section id="tab-types" class="tab" role="tabpanel" hidden>
+    <div class="seg" role="group" aria-label="Tipul de task">
+      <button type="button" data-type="periodic" aria-pressed="true">Periodic</button>
+      <button type="button" data-type="sporadic" aria-pressed="false">Sporadic</button>
+      <button type="button" data-type="aperiodic" aria-pressed="false">Aperiodic</button>
+    </div>
+
+    <!-- Periodic -->
+    <div id="ty-periodic" class="subview">
+      <p class="lead">Același task periodic, cu aceleași durate $C_k$ și aceleași întârzieri
+        $\varepsilon_k$ (latența trezirii, preempțiuni), programat în două feluri.
+        Cu <b>așteptare absolută</b> taskul se trezește pe grila $r_k = kT$ (liniile punctate);
+        cu <b>așteptare relativă</b> se trezește la $T$ după ce a terminat, iar abaterea se adună.</p>
+      <div class="controls">
+        <fieldset>
+          <legend>Taskul</legend>
+          <label>Perioadă $T$ <input type="range" id="p-T" min="4" max="20" value="10"><output></output></label>
+          <label>Timp de calcul maxim $C$ <input type="range" id="p-C" min="1" max="12" value="3"><output></output></label>
+          <label>Timp de calcul minim <input type="range" id="p-Cmin" min="1" max="12" value="2"><output></output></label>
+        </fieldset>
+        <fieldset>
+          <legend>Perturbații</legend>
+          <label>Întârziere maximă $\varepsilon$ <input type="range" id="p-eps" min="0" max="8" value="3"><output></output></label>
+          <label>Număr de joburi <input type="range" id="p-n" min="5" max="40" value="16"><output></output></label>
+          <button id="p-seed" type="button">Altă realizare aleatoare</button>
+        </fieldset>
+      </div>
+      <div class="figure">
+        <div class="fig-title">Pornirile față de grila ideală</div>
+        <div class="svgwrap"><svg id="p-gantt" role="img" aria-label="Așteptare absolută și relativă"></svg></div>
+        <p class="note">Săgeata în sus este momentul trezirii; banda hașurată este întârzierea
+          $\varepsilon_k$ până la pornire; blocul plin este execuția.</p>
+      </div>
+      <div class="cards" id="p-cards"></div>
+      <div class="split">
+        <div class="figure">
+          <div class="fig-title">Întârzierea față de grilă $L_k = s_k - r_k$, job cu job</div>
+          <div class="svgwrap"><svg id="p-lat" role="img" aria-label="Întârzierea față de grilă"></svg></div>
+          <div class="legend" id="p-lat-legend"></div>
+        </div>
+        <div class="figure">
+          <div class="fig-title">Histograma lui $L_k$ cu așteptare absolută</div>
+          <div class="svgwrap"><svg id="p-hist" role="img" aria-label="Histograma întârzierilor"></svg></div>
+          <p class="note">Lățimea distribuției este jitterul $J$. Așteptarea absolută elimină deriva, nu jitterul.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sporadic -->
+    <div id="ty-sporadic" class="subview" hidden>
+      <p class="lead">Un buton tratat de un task sporadic, mai prioritar decât bucla de reglaj.
+        Analiza presupune că între două eliberări trec cel puțin $T_{min}$. Apăsați butonul
+        (sau tasta spațiu) cât timp curge timpul și alegeți dacă intervalul minim este
+        <b>impus</b> de cod sau doar sperat.</p>
+      <div class="controls">
+        <fieldset>
+          <legend>Taskul sporadic „buton”</legend>
+          <label>$C$ <input type="range" id="sp-C" min="1" max="6" value="2"><output></output></label>
+          <label>Interval minim $T_{min}$ <input type="range" id="sp-T" min="4" max="40" value="15"><output></output></label>
+          <label>Termen-limită $D$ <input type="range" id="sp-D" min="1" max="40" value="6"><output></output></label>
+          <label>Evenimente prea apropiate
+            <select id="sp-policy">
+              <option value="none">nu se impune nimic</option>
+              <option value="ignore">se ignoră (ca filtrarea din 5.4)</option>
+              <option value="defer">se amână până la Tmin</option>
+            </select></label>
+        </fieldset>
+        <fieldset>
+          <legend>Taskul periodic „reglaj”, mai puțin prioritar</legend>
+          <label>$C$ <input type="range" id="sp-pC" min="1" max="10" value="5"><output></output></label>
+          <label>$T = D$ <input type="range" id="sp-pT" min="5" max="30" value="10"><output></output></label>
+        </fieldset>
+        <fieldset>
+          <legend>Evenimente</legend>
+          <div class="row">
+            <button id="sp-press" type="button" class="primary">Apasă butonul</button>
+            <button id="sp-burst" type="button">Vibrație: 5 fronturi</button>
+          </div>
+          <div class="row">
+            <button id="sp-random" type="button">Apăsări aleatoare</button>
+            <button id="sp-demo" type="button">Exemplul inițial</button>
+          </div>
+          <p class="note" id="sp-clock">Primul clic pe „Apasă butonul” pornește o înregistrare nouă de 200 ms.</p>
+        </fieldset>
+      </div>
+      <div class="figure">
+        <div class="fig-title">Evenimente, eliberări și execuție</div>
+        <div class="svgwrap"><svg id="sp-gantt" role="img" aria-label="Taskul sporadic"></svg></div>
+        <p class="note">Rândul „evenimente”: cerc = eveniment care a eliberat un job, cerc galben cu linie
+          punctată = eliberare amânată, ✕ roșu = eveniment ignorat.</p>
+      </div>
+      <div class="cards" id="sp-cards"></div>
+      <div class="figure">
+        <div class="fig-title">Ce garantează analiza</div>
+        <div id="sp-analysis"></div>
+      </div>
+    </div>
+
+    <!-- Aperiodic -->
+    <div id="ty-aperiodic" class="subview" hidden>
+      <p class="lead">Două taskuri periodice și cereri aperiodice, despre care nu se știe cât de dese
+        sunt. Alegeți cum sunt servite cererile și urmăriți cine plătește: taskurile periodice
+        (termene ratate) sau cererile aperiodice (timp de răspuns mare).</p>
+      <div class="controls">
+        <fieldset>
+          <legend>Servirea cererilor</legend>
+          <label>Mod
+            <select id="ap-mode">
+              <option value="high">prioritate maximă</option>
+              <option value="background">în fundal (prioritatea cea mai mică)</option>
+              <option value="server">server cu buget</option>
+            </select></label>
+          <label>Calcul pe cerere $C_a$ <input type="range" id="ap-C" min="1" max="8" value="3"><output></output></label>
+          <label>Buget $Q$ <input type="range" id="ap-Q" min="1" max="8" value="2"><output></output></label>
+          <label>Perioada serverului $T_s$ <input type="range" id="ap-Ts" min="4" max="30" value="8"><output></output></label>
+        </fieldset>
+        <fieldset>
+          <legend>Cereri</legend>
+          <div class="row">
+            <button id="ap-press" type="button" class="primary">Trimite o cerere</button>
+            <button id="ap-burst" type="button">Rafală de 4 cereri</button>
+          </div>
+          <div class="row">
+            <button id="ap-random" type="button">Cereri aleatoare</button>
+            <button id="ap-demo" type="button">Exemplul inițial</button>
+          </div>
+          <p class="note" id="ap-clock">Primul clic pornește o înregistrare nouă de 200 ms.</p>
+        </fieldset>
+      </div>
+      <p class="note" id="ap-mode-note"></p>
+      <div class="figure">
+        <div class="fig-title">Diagrama de timp</div>
+        <div class="svgwrap"><svg id="ap-gantt" role="img" aria-label="Servirea cererilor aperiodice"></svg></div>
+      </div>
+      <div class="figure" id="ap-budget-fig">
+        <div class="fig-title">Bugetul serverului: se reîncarcă la $Q$ la fiecare $T_s$, scade cât timp servește</div>
+        <div class="svgwrap"><svg id="ap-budget" role="img" aria-label="Bugetul serverului"></svg></div>
+      </div>
+      <div class="cards" id="ap-cards"></div>
+    </div>
+  </section>
+
+  <!-- 4. Planificare ------------------------------------------------------>
   <section id="tab-sched" class="tab" role="tabpanel" hidden>
     <div class="controls">
       <fieldset class="grow">
@@ -170,6 +315,8 @@
       <dt>Săgeată în sus</dt><dd>eliberare (release) $r_k$: jobul $k$ devine gata de execuție.</dd>
       <dt>Săgeată în jos, colorată</dt><dd>termenul-limită absolut (absolute deadline) $d_k = r_k + D$.</dd>
       <dt>Săgeată în jos roșie, „✕ ratat”</dt><dd>jobul nu a terminat până la $d_k$ (deadline miss).</dd>
+      <dt>Cerc pe rândul „evenimente”</dt><dd>un eveniment (de exemplu, o apăsare de buton); galben cu linie punctată: eliberare amânată; ✕ roșu: eveniment ignorat.</dd>
+      <dt>Linii verticale punctate</dt><dd>grila ideală a unui task periodic, $r_k = kT$ (fila 3, „Periodic”).</dd>
       <dt>Rândul „Procesor”</dt><dd>cine ocupă procesorul la fiecare moment; linia subțire gri înseamnă procesor liber.</dd>
       <dt>$T$, $T_{min}$, $\bar T$</dt><dd>perioada (periodic), intervalul minim între sosiri (sporadic), intervalul mediu (aperiodic).</dd>
       <dt>Laxitate (laxity) $X(t)$</dt><dd>cât mai poate aștepta jobul fără să-și rateze termenul: $(d_k - t) - c(t)$.</dd>

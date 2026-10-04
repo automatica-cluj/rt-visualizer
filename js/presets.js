@@ -1,5 +1,5 @@
 /*
- * Exemplele din meniul „Exemplu” (fila 3). Fiecare are un identificator
+ * Exemplele din meniul „Exemplu” (fila 4). Fiecare are un identificator
  * folosit în adresă: index.html#sched/rm-edf deschide direct exemplul.
  * Câmpuri task: name, type (periodic | sporadic | aperiodic), C, T, D,
  * offset (prima eliberare), prio (doar pentru FP; număr mai mare = prioritate mai mare).
