@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Vizualizator timp real</title>
-  <meta name="description" content="Demonstrații interactive pentru cursul Sisteme de Timp Real: modelul de task, eliberări periodice, sporadice și aperiodice, planificare RM, DM, EDF, LLF și încărcarea procesorului.">
+  <meta name="description" content="Demonstrații interactive pentru cursul Sisteme de Timp Real: modelul de task, eliberări periodice, sporadice și aperiodice, planificare RM, DM, EDF, LLF, încărcarea procesorului și inversiunea de prioritate.">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -21,6 +21,7 @@
   <button role="tab" data-tab="arrivals">2. Periodic, sporadic, aperiodic</button>
   <button role="tab" data-tab="types">3. Fiecare tip în detaliu</button>
   <button role="tab" data-tab="sched">4. Planificare și încărcare</button>
+  <button role="tab" data-tab="res">5. Inversiunea de prioritate</button>
   <button role="tab" data-tab="help">Legendă</button>
 </nav>
 
@@ -376,6 +377,79 @@
     </div>
   </section>
 
+
+  <!-- 5. Inversiunea de prioritate ---------------------------------------->
+  <section id="tab-res" class="tab" role="tabpanel" hidden>
+    <p class="lead">Taskurile împart date protejate de un zăvor (lock), de exemplu un mutex. Un task care
+      găsește zăvorul ocupat se blochează până când proprietarul îl eliberează. Alegeți un scenariu din
+      pagina 6.3 și un protocol, apoi urmăriți cât așteaptă taskul cel mai prioritar și de ce.</p>
+    <div class="controls">
+      <fieldset class="grow">
+        <legend>Scenariu</legend>
+        <label>Exemplu <select id="r-preset"></select></label>
+        <p class="note" id="r-preset-note"></p>
+      </fieldset>
+      <fieldset class="grow">
+        <legend>Protocolul zăvorului</legend>
+        <div class="seg" id="r-proto" role="group" aria-label="Protocol">
+          <button type="button" data-p="none">Fără protocol</button>
+          <button type="button" data-p="pip">Moștenire (PIP)</button>
+          <button type="button" data-p="icpp">Plafon imediat (ICPP)</button>
+          <button type="button" data-p="pcp">Plafon (PCP)</button>
+        </div>
+        <p class="note" id="r-proto-note"></p>
+      </fieldset>
+    </div>
+    <details class="try" open>
+      <summary>De încercat</summary>
+      <ol>
+        <li>În scenariul „Inversiune nemărginită”, comparați cele patru protocoale. Cât așteaptă H în fiecare
+          caz? Urmăriți rândul zăvorului S și banda colorată de deasupra lui L.</li>
+        <li>Cu moștenire, urmăriți M între 3 și 5 ms: este gata, dar nu rulează, deși nu folosește zăvorul
+          (blocare prin împingere).</li>
+        <li>În scenariul „Deadlock”, mutați eliberarea lui τ1 de la 1 la 3: τ2 apucă să ia ambele zăvoare
+          înainte, iar deadlockul nu mai apare. Defectul rămâne în cod, dar se vede doar la anumite decalaje.</li>
+        <li>În scenariul „Inversiune nemărginită”, scurtați secțiunea critică a lui L la <code>[S 2]</code>:
+          blocarea lui H scade la 1 ms sub orice protocol. Lungimea secțiunilor critice o decideți voi.</li>
+      </ol>
+    </details>
+    <div class="figure">
+      <div class="fig-title">Diagrama de timp: faceți clic pe diagramă pentru a muta cursorul
+        <span class="player">
+          <button id="r-back" type="button" title="Un pas înapoi">◀</button>
+          <button id="r-play" type="button">Pornește</button>
+          <button id="r-fwd" type="button" title="Un pas înainte">▶</button>
+        </span>
+      </div>
+      <div class="svgwrap"><svg id="r-gantt" role="img" aria-label="Diagrama de timp cu zăvoare"></svg></div>
+      <div class="key" data-key="exec|cs|boost|ready|lockwait|rel|lock|idle|cursor"></div>
+    </div>
+    <div class="split">
+      <div class="figure">
+        <div class="fig-title" id="r-state-title">Ce se întâmplă la cursor</div>
+        <p class="why" id="r-why"></p>
+        <div class="table-wrap"><table id="r-state"></table></div>
+      </div>
+      <div class="figure">
+        <div class="fig-title">Rezultatul simulării</div>
+        <div class="cards" id="r-cards"></div>
+      </div>
+    </div>
+    <div class="figure">
+      <div class="fig-title">Taskurile și programele lor</div>
+      <div class="table-wrap"><table id="r-tasks" class="edit"></table></div>
+      <p class="note">Program: un număr înseamnă calcul în afara zăvoarelor, <code>[S 2]</code> înseamnă 2 ms în
+        secțiunea critică pe zăvorul S, iar secțiunile se pot imbrica: <code>[A 2 [B 1]]</code> ia A, apoi B
+        cât ține A. Prioritate: număr mai mare înseamnă prioritate mai mare. Fiecare task are un singur job,
+        eliberat la momentul r.</p>
+      <div class="row"><button id="r-add" type="button">Adaugă task</button></div>
+    </div>
+    <div class="figure">
+      <div class="fig-title">Ce garantează teoria: timpul de blocare $B_i$ (6.3, secțiunea 6)</div>
+      <div id="r-bounds"></div>
+    </div>
+  </section>
+
   <!-- Legendă ----------------------------------------------------------->
   <section id="tab-help" class="tab" role="tabpanel" hidden>
     <div class="figure">
@@ -390,6 +464,10 @@
       <dt>Săgeată în jos roșie, „✕ ratat”</dt><dd>jobul nu a terminat până la $d_k$ (deadline miss).</dd>
       <dt>Cerc pe rândul „evenimente”</dt><dd>un eveniment (de exemplu, o apăsare de buton); galben cu linie punctată: eliberare amânată; ✕ roșu: eveniment ignorat.</dd>
       <dt>Linii verticale punctate</dt><dd>grila ideală a unui task periodic, $r_k = kT$ (fila 3, „Periodic”).</dd>
+      <dt>Bandă închisă la culoare deasupra blocului, cu eticheta S</dt><dd>jobul rulează în secțiunea critică pe zăvorul S (fila 5).</dd>
+      <dt>Bandă colorată îngustă deasupra blocului</dt><dd>jobul rulează cu o prioritate mai mare decât a lui, moștenită sau primită de la plafonul zăvorului; culoarea este a taskului de la care vine prioritatea (fila 5).</dd>
+      <dt>Bandă cu x roșii</dt><dd>jobul este blocat: așteaptă un zăvor ținut de alt task, sau, la PCP, este oprit de plafonul unui zăvor (fila 5).</dd>
+      <dt>Rândul „zăvorul S”</dt><dd>cine ține zăvorul la fiecare moment, în culoarea proprietarului; plafonul este prioritatea celui mai prioritar task care îl folosește.</dd>
       <dt>Rândul „Procesor”</dt><dd>cine ocupă procesorul la fiecare moment; linia subțire gri înseamnă procesor liber.</dd>
       <dt>$T$, $T_{min}$, $\bar T$</dt><dd>perioada (periodic), intervalul minim între sosiri (sporadic), intervalul mediu (aperiodic).</dd>
       <dt>Laxitate (laxity) $X(t)$</dt><dd>cât mai poate aștepta jobul fără să-și rateze termenul: $(d_k - t) - c(t)$.</dd>

@@ -19,6 +19,7 @@ GitHub Pages sau inclusă într-o pagină MkDocs.
 | **2. Periodic, sporadic, aperiodic** | același $C$ și $T$, trei feluri de eliberări; cererea de procesor cumulată; cea mai densă fereastră | 3.2 |
 | **3. Fiecare tip în detaliu** | *Periodic*: așteptare absolută față de relativă pe aceleași $C_k$ și $\varepsilon_k$, deriva, $L_k$, jitter absolut și relativ, histogramă. *Sporadic*: apăsări de buton în timp real (clic sau tasta spațiu), intervalul minim impus (ignorare, amânare) sau doar sperat, efectul asupra unui task periodic mai puțin prioritar și asupra garanției RTA. *Aperiodic*: cereri servite cu prioritate maximă, în fundal sau de un server cu buget (cel mult $Q$ în orice fereastră de $T_s$, deci analizabil ca task periodic), cu graficul bugetului, RTA pentru periodice și încărcarea periodică reglabilă | 2.2, 2.3, 3.2, 4.8, 5.4 |
 | **4. Planificare și încărcare** | editor de set de taskuri; RM, DM, priorități fixe manuale, EDF, LLF, FIFO; preemptiv sau nu; cursor pas cu pas cu stările Running / Ready / Blocked; factorul de utilizare, limita Liu & Layland, limita hiperbolică, RTA, testul EDF; încărcarea procesorului în timp | 3.3–3.4, 4.2–4.8 |
+| **5. Inversiunea de prioritate** | taskuri cu programe scrise ca în curs (`1 [S 2]`, secțiuni imbricate `[A 2 [B 1]]`); fără protocol, moștenirea priorității (PIP), plafonul imediat (ICPP), protocolul plafonului (PCP); rânduri pentru fiecare zăvor, prioritatea moștenită marcată pe diagramă, explicația fiecărui moment, deadlock detectat; marginile $B_i$ față de blocarea observată. Scenarii: blocare mărginită, Mars Pathfinder, blocare în lanț, deadlock, prețul ICPP | 6.3, 6.4 |
 | **Legendă** | cum se citește diagrama | — |
 
 Fiecare vedere are o casetă „De încercat”, cu experimente scurte care pun în evidență conceptul, și o cheie a simbolurilor sub diagramă. În fila 4, sub diagramă, o frază explică de ce rulează jobul ales la momentul cursorului.
@@ -31,6 +32,8 @@ taskuri mixte, planificare nepreemptivă, EDF față de LLF.
 ![Taskul sporadic](docs/types.png)
 
 ![Planificare](docs/sched.png)
+
+![Inversiunea de prioritate](docs/inversion.png)
 
 ## Rulare locală
 
@@ -49,6 +52,7 @@ index.html#model
 index.html#arrivals
 index.html#types/periodic      (periodic, sporadic, aperiodic)
 index.html#sched/rm-edf        (senzor, critic, rm-edf, dm, rta, overload, mixed, nonpreempt, llf)
+index.html#res/pathfinder      (blocare, pathfinder, lant, deadlock, icpp)
 ```
 
 Într-o pagină MkDocs a cursului, după publicarea pe GitHub Pages:
@@ -65,7 +69,7 @@ index.html          paginile celor patru file
 css/style.css       temă luminoasă și întunecată, paleta taskurilor
 js/sim.js           motorul de simulare, fără DOM (eliberări, planificatoare, analiză)
 js/render.js        diagrama de timp și graficele, în SVG
-js/presets.js       exemplele din fila 4
+js/presets.js       exemplele din filele 4 și 5
 js/app.js           legătura dintre controale și desene
 tests/sim.test.js   verifică motorul pe exemplele din curs
 ```

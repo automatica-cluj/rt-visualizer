@@ -46,7 +46,7 @@ main, .top, .tabs, .foot { max-width: 1240px; margin: 0 auto; padding-left: 16px
 .top p { margin: 2px 0 0; color: var(--ink-2); }
 .tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 16px; border-bottom: 1px solid var(--border); }
 .tabs button {
-  border: 0; background: none; color: var(--ink-2); padding: 10px 14px; font: inherit; cursor: pointer;
+  border: 0; background: none; color: var(--ink-2); padding: 10px 10px; font: inherit; cursor: pointer;
   border-bottom: 2px solid transparent; margin-bottom: -1px;
 }
 .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
@@ -168,6 +168,15 @@ svg text { fill: var(--ink); font-family: system-ui, -apple-system, "Segoe UI", 
 .miss-label { fill: var(--bad); font-size: 11px; font-weight: 600; }
 .miss-label, .ann-point, .c-label { paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
 .cline { stroke: var(--ink-2); stroke-width: 3; stroke-linecap: round; }
+.cs-bar { fill: var(--ink); opacity: 0.55; }
+.boost { stroke: var(--surface); stroke-width: 1; }
+.boost-label { font-size: 10.5px; font-weight: 600; fill: var(--ink-2); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+.blk-bg { fill: color-mix(in srgb, var(--bad) 10%, transparent); }
+.blk-x { stroke: var(--bad); stroke-width: 1; opacity: 0.7; }
+.blk-box { stroke: var(--bad); stroke-width: 0.8; stroke-opacity: 0.5; }
+.blk-label { font-size: 10.5px; font-weight: 600; fill: var(--bad); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+.lock-held { opacity: 0.75; }
+.deadlock-zone { fill: color-mix(in srgb, var(--bad) 9%, transparent); }
 .c-label { font-size: 11.5px; font-weight: 600; fill: var(--ink); }
 .idle { fill: var(--axis); }
 .hit { fill: transparent; }
@@ -213,9 +222,19 @@ details.try ol { margin: 6px 0 2px; padding-left: 22px; }
 details.try li { margin: 4px 0; }
 .why { margin: 0 0 8px; padding: 8px 10px; border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); border-radius: 0 6px 6px 0; }
 #s-order { color: var(--ink-2); }
+input.prog { font-family: ui-monospace, Menlo, Consolas, monospace; }
+input.bad-input { border-color: var(--bad); }
+td.boosted { color: var(--accent); font-weight: 700; }
+td.cur { background: color-mix(in srgb, var(--accent) 8%, transparent); font-weight: 600; }
+.state.blocked { color: var(--bad); }
+code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.92em; background: color-mix(in srgb, var(--ink) 6%, transparent); padding: 0 4px; border-radius: 4px; }
 .foot { color: var(--muted); font-size: 0.85em; padding-top: 8px; padding-bottom: 24px; border-top: 1px solid var(--border); }
 
 @media (max-width: 640px) {
+  .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; }
+  .tabs button { white-space: nowrap; flex: none; }
+  .seg { display: flex; flex-wrap: wrap; }
+  .seg button { flex: 1 1 45%; }
   .player { margin-left: 0; }
   .defs { grid-template-columns: 1fr; }
   fieldset { min-width: 0; width: 100%; }

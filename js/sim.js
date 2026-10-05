@@ -415,7 +415,311 @@
       policy: 'RM', preemptive: true, budget };
   }
 
+
+  /* ---------------- resurse partajate și inversiunea de prioritate (6.3) ---------------- */
+
+  const PROTOCOLS = {
+    none: 'Fără protocol (zăvor simplu)',
+    pip: 'Moștenirea priorității (PIP)',
+    icpp: 'Plafonul imediat (ICPP)',
+    pcp: 'Protocolul plafonului (PCP)'
+  };
+
+  /**
+   * Programul unui task, scris ca în exemplele din 6.3:
+   *   „1 [S 2] 1”  = 1 ms de calcul, 2 ms în secțiunea critică pe zăvorul S, 1 ms de calcul;
+   *   „[A 2 [B 1]]” = secțiuni critice imbricate (B este luat cât timp A este ținut).
+   * Întoarce { ops } sau { error }. Operațiile: {op:'calc',n}, {op:'lock',S}, {op:'unlock',S}.
+   */
+  function parseProgram(text) {
+    const ops = [], open = [];
+    const re = /\[\s*([^\s\[\]\d][^\s\[\]]*)|\]|\d+|\S+/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const tok = m[0];
+      if (m[1]) { ops.push({ op: 'lock', S: m[1] }); open.push(m[1]); }
+      else if (tok === ']') {
+        if (!open.length) return { error: 'o paranteză „]” nu are pereche' };
+        ops.push({ op: 'unlock', S: open.pop() });
+      } else if (/^\d+$/.test(tok)) { if (+tok > 0) ops.push({ op: 'calc', n: +tok }); }
+      else return { error: `nu înțeleg „${tok}”; folosiți numere și [S n]` };
+    }
+    if (open.length) return { error: `secțiunea critică pe ${open[open.length - 1]} nu este închisă cu „]”` };
+    if (!ops.some(o => o.op === 'calc')) return { error: 'programul nu are niciun calcul' };
+    return { ops };
+  }
+
+  /** Durata calculului dintre o operație lock și perechea ei unlock (secțiunea critică). */
+  function criticalSections(ops) {
+    const out = [];
+    ops.forEach((o, i) => {
+      if (o.op !== 'lock') return;
+      let depth = 0, len = 0;
+      for (let k = i; k < ops.length; k++) {
+        if (ops[k].op === 'lock') depth++;
+        if (ops[k].op === 'unlock') { depth--; if (depth === 0) break; }
+        if (ops[k].op === 'calc') len += ops[k].n;
+      }
+      out.push({ S: o.S, len });
+    });
+    return out;
+  }
+
+  /** Plafonul fiecărui zăvor: prioritatea celui mai prioritar task care îl folosește. */
+  function ceilings(tasks) {
+    const c = {};
+    tasks.forEach(t => t.ops.forEach(o => {
+      if (o.op === 'lock') c[o.S] = Math.max(c[o.S] === undefined ? -Infinity : c[o.S], t.prio);
+    }));
+    return c;
+  }
+
+  /**
+   * Simulează câte un job pentru fiecare task (eliberat la r), cu priorități fixe,
+   * preemptiv, pe un singur nucleu, sub protocolul ales.
+   * tasks: [{ name, prio, r, ops }]; număr mai mare = prioritate mai mare.
+   */
+  function simulateResources(tasks, protocol) {
+    const n = tasks.length;
+    const ceil = ceilings(tasks);
+    const lockNames = Object.keys(ceil).sort();
+    const work = tasks.reduce((a, t) => a + t.ops.reduce((b, o) => b + (o.op === 'calc' ? o.n : 0), 0), 0);
+    const cap = Math.max(...tasks.map(t => t.r)) + work + 2;
+    // wants: jobul a cerut zăvorul de la pc și nu l-a primit (este blocat până devine posibil)
+    const J = tasks.map((t, i) => ({ i, pc: 0, rem: null, held: [], done: false, start: null, finish: null, wants: false }));
+    const holder = {};
+    lockNames.forEach(S => { holder[S] = null; });
+    const timeline = tasks.map(() => []);
+    const holders = {};
+    lockNames.forEach(S => { holders[S] = []; });
+    const events = [];
+    let running = null, deadlock = null, end = cap;
+
+    const opAt = j => tasks[j.i].ops[j.pc];
+    const curCalc = j => { const o = opAt(j); if (o && o.op === 'calc' && j.rem === null) j.rem = o.n; };
+    // după un calcul, eliberează imediat zăvoarele închise și trece peste operațiile fără durată
+    function advance(j, t) {
+      for (;;) {
+        const o = opAt(j);
+        if (!o) { j.done = true; j.finish = t; return; }
+        if (o.op === 'unlock') {
+          holder[o.S] = null;
+          j.held = j.held.filter(x => x !== o.S);
+          events.push({ t, task: j.i, kind: 'unlock', S: o.S });
+          j.pc++;
+          continue;
+        }
+        return;
+      }
+    }
+
+    for (let t = 0; t < cap; t++) {
+      const cand = J.filter(j => !j.done && tasks[j.i].r <= t);
+      if (!cand.length && J.every(j => j.done)) { end = t; break; }
+      let pick = null, info = null;
+      for (let guard = 0; guard < 50; guard++) {
+        info = lockState(cand, t);
+        const free = cand.filter(j => !info.blocked.has(j));
+        if (!free.length) {
+          if (cand.length && !deadlock) {
+            const cyc = findCycle(info.blockedBy);
+            if (cyc) { deadlock = { t, tasks: cyc.map(j => j.i) }; events.push({ t, kind: 'deadlock', tasks: deadlock.tasks }); }
+          }
+          break;
+        }
+        pick = free.reduce((a, b) => better(b, a, info.prio) ? b : a);
+        const o = opAt(pick);
+        if (o.op === 'lock') {
+          // jobul ales execută cererea de zăvor: o primește sau se blochează
+          if (canTake(pick, o.S, info.prio)) {
+            holder[o.S] = pick;
+            pick.held.push(o.S);
+            pick.wants = false;
+            events.push({ t, task: pick.i, kind: 'lock', S: o.S });
+            pick.pc++;
+          } else {
+            pick.wants = true;
+            events.push({ t, task: pick.i, kind: holder[o.S] ? 'block' : 'ceiling', S: o.S });
+          }
+          pick = null;
+          continue;     // prioritățile se pot schimba (ICPP, moștenire): se alege din nou
+        }
+        break;
+      }
+      // starea fiecărui task la momentul t
+      tasks.forEach((task, i) => {
+        const j = J[i];
+        let st;
+        if (j.done) st = { s: 'done' };
+        else if (task.r > t) st = { s: 'idle' };
+        else if (j === pick) st = { s: 'run' };
+        else if (info && info.blocked.has(j)) {
+          const o = opAt(j), by = info.blockedBy.get(j);
+          st = { s: 'blocked', S: o.S, by: by ? by.i : null, ceiling: holder[o.S] === null };
+        } else st = { s: 'ready' };
+        if (st.s !== 'done' && st.s !== 'idle' && info) {
+          st.prio = info.prio.get(j);
+          if (st.prio > task.prio) st.donor = info.donor.get(j);
+        }
+        st.held = j.held.slice();
+        timeline[i].push(st);
+      });
+      lockNames.forEach(S => holders[S].push(holder[S] ? holder[S].i : null));
+      if (pick) {
+        curCalc(pick);
+        if (pick.start === null) pick.start = t;
+        if (running && running !== pick && !running.done) running.preempted = (running.preempted || 0) + 1;
+        running = pick;
+        pick.rem--;
+        if (pick.rem === 0) { pick.rem = null; pick.pc++; advance(pick, t + 1); }
+      } else running = null;
+      if (deadlock && t >= deadlock.t + 3) { end = t + 1; break; }
+    }
+
+    // cine este blocat, de cine, și ce prioritate activă are fiecare
+    function lockState(cand, t) {
+      const blocked = new Set(), blockedBy = new Map();
+      const prio = new Map(), donor = new Map();
+      cand.forEach(j => {
+        let p = tasks[j.i].prio;
+        if (protocol === 'icpp') j.held.forEach(S => { p = Math.max(p, ceil[S]); });
+        prio.set(j, p);
+        donor.set(j, j.i);
+      });
+      if (protocol === 'icpp') {
+        cand.forEach(j => {
+          const p = prio.get(j);
+          if (p > tasks[j.i].prio) {
+            const d = tasks.map((x, k) => k).filter(k => tasks[k].prio === p && tasks[k].ops.some(o => o.op === 'lock' && j.held.includes(o.S)));
+            donor.set(j, d.length ? d[0] : j.i);
+          }
+        });
+      }
+      // cererile deja făcute și încă nesatisfăcute
+      const evalBlocked = () => {
+        blocked.clear(); blockedBy.clear();
+        cand.forEach(j => {
+          if (!j.wants) return;
+          const S = opAt(j).S;
+          if (!canTake(j, S, prio)) { blocked.add(j); blockedBy.set(j, blocker(j, S)); }
+        });
+      };
+      evalBlocked();
+      if (protocol === 'pip' || protocol === 'pcp') {
+        // moștenire tranzitivă; la PCP, prioritatea moștenită poate schimba și cine trece de plafon
+        for (let round = 0; round < 20; round++) {
+          let changed = false;
+          blockedBy.forEach((h, b) => {
+            if (h && cand.includes(h) && prio.get(b) > prio.get(h)) {
+              prio.set(h, prio.get(b)); donor.set(h, donor.get(b)); changed = true;
+            }
+          });
+          if (!changed) break;
+          if (protocol === 'pcp') evalBlocked();
+        }
+      }
+      return { blocked, blockedBy, prio, donor };
+    }
+    // regula de acordare a zăvorului; la PCP, prioritatea trebuie să depășească plafoanele zăvoarelor ținute de alții
+    function systemCeiling(j) {
+      let sys = -Infinity, who = null;
+      lockNames.forEach(S => { if (holder[S] && holder[S] !== j && ceil[S] > sys) { sys = ceil[S]; who = holder[S]; } });
+      return { sys, who };
+    }
+    function canTake(j, S, prio) {
+      if (holder[S] && holder[S] !== j) return false;
+      if (protocol === 'pcp') return prio.get(j) > systemCeiling(j).sys;
+      return true;
+    }
+    function blocker(j, S) { return holder[S] || systemCeiling(j).who; }
+    // la prioritate egală: jobul care rula continuă, apoi cel eliberat mai devreme, apoi ordinea din tabel
+    function better(a, b, prio) {
+      if (prio.get(a) !== prio.get(b)) return prio.get(a) > prio.get(b);
+      if (a === running) return true;
+      if (b === running) return false;
+      if (tasks[a.i].r !== tasks[b.i].r) return tasks[a.i].r < tasks[b.i].r;
+      return a.i < b.i;
+    }
+    function findCycle(blockedBy) {
+      for (const start of blockedBy.keys()) {
+        const seen = [];
+        let cur = start;
+        while (cur && blockedBy.has(cur)) {
+          if (seen.includes(cur)) return seen.slice(seen.indexOf(cur));
+          seen.push(cur);
+          cur = blockedBy.get(cur);
+        }
+      }
+      return null;
+    }
+
+    // statistici: timpul de răspuns și cât a așteptat fiecare după taskuri mai puțin prioritare
+    const horizon = Math.min(end, timeline[0].length);
+    const stats = tasks.map((task, i) => {
+      let blockedT = 0, inversion = 0;
+      for (let t = 0; t < horizon; t++) {
+        const st = timeline[i][t];
+        if (st.s !== 'blocked' && st.s !== 'ready') continue;
+        if (st.s === 'blocked') blockedT++;
+        const runner = tasks.findIndex((x, k) => timeline[k][t].s === 'run');
+        if (runner >= 0 && tasks[runner].prio < task.prio) inversion++;
+      }
+      const j = J[i];
+      return { start: j.start, finish: j.finish, R: j.finish !== null ? j.finish - task.r : null, blocked: blockedT, inversion };
+    });
+    return { tasks, protocol, timeline, holders, lockNames, ceil, events, deadlock, horizon, stats };
+  }
+
+  /**
+   * Marginile blocării B_i din 6.3, secțiunea 6, pentru PIP și pentru plafon.
+   * Zăvoarele care contează pentru τ_i: folosite de un task mai puțin prioritar și
+   * cu plafonul cel puțin egal cu prioritatea lui τ_i.
+   */
+  function blockingBounds(tasks) {
+    const ceil = ceilings(tasks);
+    const delta = tasks.map(t => {
+      const d = {};
+      criticalSections(t.ops).forEach(cs => { d[cs.S] = Math.max(d[cs.S] || 0, cs.len); });
+      return d;
+    });
+    return tasks.map((ti, i) => {
+      const lower = tasks.map((t, j) => j).filter(j => tasks[j].prio < ti.prio);
+      const matter = Object.keys(ceil).filter(S => ceil[S] >= ti.prio && lower.some(j => delta[j][S] !== undefined));
+      const ceilingB = Math.max(0, ...lower.flatMap(j => matter.map(S => delta[j][S] || 0)));
+      const byTask = lower.reduce((a, j) => a + Math.max(0, ...matter.map(S => delta[j][S] || 0)), 0);
+      const byLock = matter.reduce((a, S) => a + Math.max(0, ...lower.map(j => delta[j][S] || 0)), 0);
+      // fără protocol: un task de prioritate intermediară poate prelungi blocarea oricât
+      const uses = new Set(ti.ops.filter(o => o.op === 'lock').map(o => o.S));
+      const direct = lower.filter(j => Object.keys(delta[j]).some(S => uses.has(S)));
+      const medium = direct.length ? tasks.map((t, k) => k).filter(k =>
+        direct.some(j => tasks[k].prio < ti.prio && tasks[k].prio > tasks[j].prio)) : [];
+      const noneB = medium.length ? null
+        : direct.reduce((a, j) => a + Math.max(0, ...[...uses].map(S => delta[j][S] || 0)), 0);
+      return { matter, ceiling: ceilingB, pip: Math.min(byTask, byLock), none: noneB, medium };
+    });
+  }
+
+  /** Deadlock posibil fără plafon: zăvoare luate imbricat în ordini contrare. */
+  function lockOrderCycle(tasks) {
+    const edges = {};
+    tasks.forEach(t => {
+      const held = [];
+      t.ops.forEach(o => {
+        if (o.op === 'lock') { held.forEach(A => { (edges[A] = edges[A] || new Set()).add(o.S); }); held.push(o.S); }
+        if (o.op === 'unlock') held.splice(held.lastIndexOf(o.S), 1);
+      });
+    });
+    const visit = (u, path) => {
+      if (path.includes(u)) return path.slice(path.indexOf(u)).concat(u);
+      for (const v of edges[u] || []) { const c = visit(v, path.concat(u)); if (c) return c; }
+      return null;
+    };
+    for (const A of Object.keys(edges)) { const c = visit(A, []); if (c) return c; }
+    return null;
+  }
+
   return { gcd, lcm, hyperperiod, rng, releases, simulate, stateAt,
     laxitySeries, analyse, densestWindow, POLICIES, summarize,
-    periodicRelease, sporadicFilter, simulateAperiodic };
+    periodicRelease, sporadicFilter, simulateAperiodic,
+    PROTOCOLS, parseProgram, criticalSections, ceilings, simulateResources, blockingBounds, lockOrderCycle };
 });

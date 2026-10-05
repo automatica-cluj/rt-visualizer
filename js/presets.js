@@ -101,3 +101,63 @@ window.RTPresets = [
     ]
   }
 ];
+
+/*
+ * Scenariile din fila 5, după pagina 6.3. Program: un număr = calcul în afara zăvoarelor,
+ * [S n] = n ms în secțiunea critică pe zăvorul S; secțiunile se pot imbrica.
+ */
+window.RTResPresets = [
+  {
+    id: 'blocare',
+    title: 'Blocare mărginită: H și L (6.3, secțiunea 1)',
+    note: 'L ia zăvorul S la 0. H este eliberat la 1 și cere zăvorul la 2: așteaptă 3 ms, cât restul secțiunii critice a lui L. Este o inversiune mărginită, prețul inevitabil al unui zăvor.',
+    protocol: 'none',
+    tasks: [
+      { name: 'H', prio: 3, r: 1, prog: '1 [S 2]' },
+      { name: 'L', prio: 1, r: 0, prog: '[S 4] 1' }
+    ]
+  },
+  {
+    id: 'pathfinder',
+    title: 'Inversiune nemărginită: H, M, L (6.3, Mars Pathfinder)',
+    note: 'M nu folosește zăvorul, dar îl preemptează pe L cât timp H așteaptă: H este blocat 11 ms, din care 8 ms sunt calculul lui M. Alegeți moștenirea priorității sau un plafon.',
+    protocol: 'none',
+    tasks: [
+      { name: 'H', prio: 3, r: 1, prog: '1 [S 2]' },
+      { name: 'M', prio: 2, r: 3, prog: '8' },
+      { name: 'L', prio: 1, r: 0, prog: '[S 4] 1' }
+    ]
+  },
+  {
+    id: 'lant',
+    title: 'Blocare în lanț: două zăvoare (6.3, secțiunea 3)',
+    note: 'H folosește pe rând S1 și S2; L1 ține S1, iar L2 ține S2 când este eliberat H. Cu moștenire, H plătește două secțiuni critice. Cu un plafon, cel mult una.',
+    protocol: 'pip',
+    tasks: [
+      { name: 'H', prio: 3, r: 2, prog: '[S1 1] [S2 1] 1' },
+      { name: 'L1', prio: 2, r: 1, prog: '[S1 3] 1' },
+      { name: 'L2', prio: 1, r: 0, prog: '[S2 4] 1' }
+    ]
+  },
+  {
+    id: 'deadlock',
+    title: 'Deadlock: zăvoare luate în ordine inversă (6.3, secțiunea 3)',
+    note: 'τ2 ia A, apoi B; τ1, mai prioritar, ia B, apoi A. Fără protocol sau cu moștenire, la 3 ms fiecare așteaptă zăvorul celuilalt. Protocoalele cu plafon nu lasă ciclul să se formeze.',
+    protocol: 'pip',
+    tasks: [
+      { name: 'τ1', prio: 2, r: 1, prog: '[B 1 [A 1]]' },
+      { name: 'τ2', prio: 1, r: 0, prog: '[A 2 [B 1]]' }
+    ]
+  },
+  {
+    id: 'icpp',
+    title: 'Prețul plafonului imediat: M amânat fără ca H să aștepte (6.3, secțiunea 4)',
+    note: 'Cu plafon imediat, L rulează cu prioritatea lui H cât timp ține S, chiar dacă H nu este încă eliberat: M așteaptă 3 ms. Cu moștenire, M rulează imediat. Marginea în cel mai rău caz este aceeași, dar blocarea prin împingere apare mai des.',
+    protocol: 'icpp',
+    tasks: [
+      { name: 'H', prio: 3, r: 9, prog: '1 [S 1]' },
+      { name: 'M', prio: 2, r: 1, prog: '3' },
+      { name: 'L', prio: 1, r: 0, prog: '[S 4] 1' }
+    ]
+  }
+];

@@ -44,6 +44,10 @@
     deferred: ['eliberare amânată', '<line x1="4" y1="11" x2="20" y2="11" class="defer-line"/><circle cx="5" cy="5" r="4" class="ev-dot ev-def"/>'],
     rejected: ['eveniment ignorat', '<text x="11" y="13" class="ev-x" text-anchor="middle">✕</text>'],
     grid: ['grila ideală kT', '<line x1="11" y1="0" x2="11" y2="16" class="grid-ideal"/>'],
+    cs: ['în secțiunea critică (eticheta: zăvorul)', '<rect x="1" y="3" width="20" height="11" rx="2" style="fill:var(--s3)"/><rect x="1" y="3" width="20" height="3" class="cs-bar"/>'],
+    boost: ['rulează cu prioritate ridicată (culoarea taskului de la care vine)', '<rect x="1" y="7" width="20" height="8" rx="2" style="fill:var(--s3)"/><rect x="1" y="1" width="20" height="4" rx="1" style="fill:var(--s1)"/>'],
+    lockwait: ['blocat: așteaptă un zăvor', '<pattern id="P" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="5" height="5" class="blk-bg"/><path d="M0,0 L5,5 M5,0 L0,5" class="blk-x"/></pattern><rect x="1" y="4" width="20" height="8" class="blk-box" style="fill:url(#P)"/>'],
+    lock: ['zăvor ținut (culoarea proprietarului)', '<rect x="1" y="5" width="20" height="7" rx="2" class="lock-held" style="fill:var(--s3)"/>'],
     cursor: ['cursor', '<line x1="11" y1="0" x2="11" y2="16" class="cursor"/>']
   };
   document.querySelectorAll('.key').forEach((k, ki) => {
@@ -839,13 +843,13 @@
   function showType(type) {
     if (!['periodic', 'sporadic', 'aperiodic'].includes(type)) type = 'periodic';
     tyType = type;
-    document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.type === type));
+    document.querySelectorAll('#tab-types .seg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.type === type));
     ['periodic', 'sporadic', 'aperiodic'].forEach(t => { $('ty-' + t).hidden = t !== type; });
     if (type !== 'sporadic') spRec.stop();
     if (type !== 'aperiodic') apRec.stop();
     ({ periodic: renderPeriodic, sporadic: renderSporadic, aperiodic: renderAperiodic })[type]();
   }
-  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#tab-types .seg button').forEach(b => b.addEventListener('click', () => {
     history.replaceState(null, '', '#types/' + b.dataset.type);
     showType(b.dataset.type);
   }));
@@ -855,6 +859,227 @@
     ev.preventDefault();
     $('sp-press').click();
   });
+
+
+  /* ===================== 5. Inversiunea de prioritate ===================== */
+  const rpresets = window.RTResPresets;
+  const rs = { tasks: [], proto: 'none', cursor: 0, timer: null, result: null, axis: null };
+  $('r-preset').innerHTML = rpresets.map(p => `<option value="${p.id}">${esc(p.title)}</option>`).join('') +
+    '<option value="custom">(scenariul meu)</option>';
+  const PROTO_NOTES = {
+    none: 'Zăvor simplu: cine găsește zăvorul ocupat se blochează până când proprietarul îl eliberează. Proprietarul rulează cu prioritatea lui obișnuită, deci poate fi preemptat de orice task mai prioritar decât el, chiar dacă acesta nu folosește zăvorul.',
+    pip: 'Moștenirea priorității: când un task se blochează la un zăvor, proprietarul primește temporar prioritatea lui, până eliberează zăvorul. Regula se aplică și pe lanțuri: dacă proprietarul așteaptă la rândul lui alt zăvor, prioritatea trece mai departe.',
+    icpp: 'Plafonul imediat: cine ia un zăvor primește imediat prioritatea egală cu plafonul zăvorului, adică prioritatea celui mai prioritar task care îl folosește, și revine la prioritatea lui când îl eliberează.',
+    pcp: 'Protocolul plafonului: moștenire, plus o regulă la cerere. Un task ia un zăvor liber doar dacă prioritatea lui este strict mai mare decât plafoanele zăvoarelor ținute de alte taskuri; altfel se blochează (blocare de plafon).'
+  };
+
+  function loadResPreset(id) {
+    const p = rpresets.find(x => x.id === id) || rpresets[1];
+    $('r-preset').value = p.id;
+    rs.tasks = p.tasks.map(t => ({ ...t }));
+    rs.proto = p.protocol;
+    $('r-preset-note').textContent = p.note;
+    rs.cursor = 0;
+    buildResEditor();
+  }
+  function buildResEditor() {
+    const rows = rs.tasks.map((t, i) => {
+      const pr = S.parseProgram(t.prog);
+      return `<tr data-i="${i}"><td><span class="sw big" style="background:${color(i)}"></span></td>
+        <td><input data-f="name" value="${esc(t.name)}" size="5"></td>
+        <td><input data-f="prio" type="number" min="1" max="20" value="${t.prio}"></td>
+        <td><input data-f="r" type="number" min="0" max="60" value="${t.r}"></td>
+        <td><input data-f="prog" value="${esc(t.prog)}" size="22" class="prog ${pr.error ? 'bad-input' : ''}"></td>
+        <td class="bad">${pr.error ? esc(pr.error) : ''}</td>
+        <td><button type="button" class="ghost del" title="Șterge taskul" ${rs.tasks.length < 2 ? 'disabled' : ''}>✕</button></td></tr>`;
+    });
+    $('r-tasks').innerHTML = `<thead><tr><th></th><th>Nume</th><th>Prioritate P</th><th>Eliberare r</th><th>Program</th><th></th><th></th></tr></thead><tbody>${rows.join('')}</tbody>`;
+    $('r-add').disabled = rs.tasks.length >= 6;
+  }
+  $('r-tasks').addEventListener('change', ev => {
+    const tr = ev.target.closest('tr'); if (!tr) return;
+    const t = rs.tasks[+tr.dataset.i], f = ev.target.dataset.f;
+    if (!f) return;
+    if (f === 'name' || f === 'prog') t[f] = ev.target.value;
+    else { t[f] = Math.max(f === 'r' ? 0 : 1, Math.round(+ev.target.value || 0)); ev.target.value = t[f]; }
+    $('r-preset').value = 'custom';
+    buildResEditor(); runRes();
+  });
+  $('r-tasks').addEventListener('click', ev => {
+    if (!ev.target.classList.contains('del')) return;
+    rs.tasks.splice(+ev.target.closest('tr').dataset.i, 1);
+    $('r-preset').value = 'custom';
+    buildResEditor(); runRes();
+  });
+  $('r-add').addEventListener('click', () => {
+    rs.tasks.push({ name: `τ${rs.tasks.length + 1}`, prio: 1, r: 0, prog: '2' });
+    $('r-preset').value = 'custom';
+    buildResEditor(); runRes();
+  });
+  $('r-preset').addEventListener('change', ev => {
+    if (ev.target.value === 'custom') return;
+    loadResPreset(ev.target.value);
+    history.replaceState(null, '', '#res/' + ev.target.value);
+    runRes();
+  });
+  document.querySelectorAll('#r-proto button').forEach(b => b.addEventListener('click', () => { rs.proto = b.dataset.p; runRes(); }));
+  $('r-gantt').addEventListener('click', ev => {
+    if (!rs.axis) return;
+    const svg = $('r-gantt'), r = svg.getBoundingClientRect();
+    const px = (ev.clientX - r.left) * (svg.viewBox.baseVal.width / r.width);
+    if (px < rs.axis.left) return;
+    setResCursor(Math.floor(rs.axis.toTime(px)));
+  });
+  $('r-back').addEventListener('click', () => setResCursor(rs.cursor - 1));
+  $('r-fwd').addEventListener('click', () => setResCursor(rs.cursor + 1));
+  $('r-play').addEventListener('click', () => {
+    if (rs.timer) { stopResPlay(); return; }
+    if (!rs.result) return;
+    if (rs.cursor >= rs.result.horizon - 1) rs.cursor = -1;
+    $('r-play').textContent = 'Oprește';
+    rs.timer = setInterval(() => {
+      if (rs.cursor >= rs.result.horizon - 1) { stopResPlay(); return; }
+      setResCursor(rs.cursor + 1);
+    }, 450);
+  });
+  function stopResPlay() { clearInterval(rs.timer); rs.timer = null; $('r-play').textContent = 'Pornește'; }
+  function setResCursor(t) {
+    if (!rs.result) return;
+    rs.cursor = Math.max(0, Math.min(rs.result.horizon - 1, t));
+    drawResGantt(); drawResState();
+  }
+
+  function runRes() {
+    document.querySelectorAll('#r-proto button').forEach(b => b.setAttribute('aria-pressed', b.dataset.p === rs.proto));
+    $('r-proto-note').textContent = PROTO_NOTES[rs.proto];
+    const parsed = rs.tasks.map(t => ({ name: t.name, prio: t.prio, r: t.r, ...S.parseProgram(t.prog) }));
+    const bad = parsed.find(t => t.error);
+    if (bad) {
+      rs.result = null;
+      $('r-why').textContent = `Programul lui ${bad.name} are o greșeală: ${bad.error}.`;
+      ['r-cards', 'r-state', 'r-bounds'].forEach(id => { $(id).innerHTML = ''; });
+      while ($('r-gantt').firstChild) $('r-gantt').removeChild($('r-gantt').firstChild);
+      return;
+    }
+    rs.result = S.simulateResources(parsed, rs.proto);
+    rs.cursor = Math.min(rs.cursor, rs.result.horizon - 1);
+    drawResGantt(); drawResState(); drawResCards(); drawResBounds(parsed);
+  }
+  function drawResGantt() {
+    rs.axis = R.resGantt($('r-gantt'), rs.result, { cursor: rs.cursor });
+    jobTip({ jobs: [], tasks: [] }, $('r-gantt'));
+  }
+
+  /** Explicația momentului t: cine rulează, cine așteaptă și ce fel de inversiune este. */
+  function resWhy(res, t) {
+    const T = res.tasks, st = T.map((_, i) => res.timeline[i][t]);
+    const nm = i => `<b>${esc(T[i].name)}</b>`;
+    const parts = [];
+    if (res.deadlock && t >= res.deadlock.t) {
+      const [a, b] = res.deadlock.tasks;
+      return `La t = ${t}: <b class="bad">deadlock</b>. ${nm(a)} așteaptă un zăvor ținut de ${nm(b)}, iar ${nm(b)} așteaptă un zăvor ținut de ${nm(a)}. Niciunul nu mai poate continua, oricât ar aștepta.`;
+    }
+    const run = st.findIndex(x => x.s === 'run');
+    if (run < 0) {
+      parts.push(`La t = ${t} procesorul este liber.`);
+    } else {
+      const x = st[run];
+      let txt = `La t = ${t} rulează ${nm(run)}`;
+      if (x.held.length) txt += `, în secțiunea critică pe ${x.held.join(', ')}`;
+      if (x.donor !== undefined && x.prio > T[run].prio) {
+        txt += res.protocol === 'icpp'
+          ? `, cu prioritatea ${x.prio}, plafonul zăvorului ${x.held[x.held.length - 1]} (prioritatea lui proprie este ${T[run].prio})`
+          : `, cu prioritatea ${x.prio}, moștenită de la ${nm(x.donor)} (prioritatea lui proprie este ${T[run].prio})`;
+      }
+      parts.push(txt + '.');
+    }
+    // lanțul de blocare: cine îl blochează, direct sau mai departe
+    const chain = i => { const out = []; let c = i; while (c !== null && c !== undefined && st[c] && st[c].s === 'blocked' && !out.includes(st[c].by)) { out.push(st[c].by); c = st[c].by; } return out; };
+    st.forEach((x, i) => {
+      if (x.s === 'blocked') {
+        parts.push(x.ceiling
+          ? `${nm(i)} cere zăvorul ${x.S}, care este liber, dar plafonul unui zăvor ținut de ${nm(x.by)} nu este mai mic decât prioritatea lui: blocare de plafon.`
+          : `${nm(i)} așteaptă zăvorul ${x.S}, ținut de ${nm(x.by)}.`);
+      }
+    });
+    if (run >= 0) {
+      st.forEach((x, i) => {
+        if ((x.s !== 'blocked' && x.s !== 'ready') || T[i].prio <= T[run].prio) return;
+        if (x.s === 'blocked') {
+          parts.push(chain(i).includes(run)
+            ? `Inversiune mărginită: ${nm(run)}, mai puțin prioritar, rulează ca să elibereze zăvorul care îl blochează pe ${nm(i)}.`
+            : `<b class="bad">Inversiune nemărginită</b>: ${nm(run)} nu ține zăvorul pe care îl așteaptă ${nm(i)}, dar îl împiedică pe proprietar să ruleze și să îl elibereze.`);
+        } else if (st[run].prio > T[run].prio) {
+          parts.push(`Blocare prin împingere: ${nm(i)} este gata, dar ${nm(run)} rulează cu o prioritate ridicată, mai mare decât a lui ${nm(i)}.`);
+        }
+      });
+    }
+    return parts.join(' ');
+  }
+
+  function drawResState() {
+    const res = rs.result, t = rs.cursor;
+    $('r-state-title').textContent = `Ce se întâmplă în intervalul [${t}, ${t + 1})`;
+    $('r-why').innerHTML = resWhy(res, t);
+    const name = { run: 'Running', ready: 'Ready', blocked: 'Blocked', idle: 'neeliberat', done: 'terminat' };
+    const rows = res.tasks.map((task, i) => {
+      const x = res.timeline[i][t];
+      const active = x.prio !== undefined ? x.prio : task.prio;
+      const st = { run: 'running', ready: 'ready', blocked: 'blocked', idle: 'waiting', done: 'waiting' }[x.s];
+      return `<tr class="${st}"><td><span class="sw" style="background:${color(i)}"></span>${esc(task.name)}</td>
+        <td class="num">${task.prio}</td>
+        <td class="num ${active > task.prio ? 'boosted' : ''}">${active}</td>
+        <td><span class="state ${st}">${name[x.s]}</span>${x.s === 'blocked' ? ` pe ${x.S}` : ''}</td>
+        <td>${x.held.length ? x.held.join(', ') : '—'}</td></tr>`;
+    }).join('');
+    $('r-state').innerHTML = `<thead><tr><th>Task</th><th>Prioritate proprie</th><th>Prioritate activă</th><th>Stare</th><th>Zăvoare ținute</th></tr></thead><tbody>${rows}</tbody>`;
+  }
+
+  function drawResCards() {
+    const res = rs.result;
+    const cards = res.tasks.map((task, i) => {
+      const s = res.stats[i];
+      return card(`${esc(task.name)} (P = ${task.prio})`, s.R !== null ? `R = ${s.R} ms` : 'neterminat',
+        s.inversion ? `a așteptat ${s.inversion} ms după taskuri mai puțin prioritare` : 'nu a așteptat după taskuri mai puțin prioritare');
+    });
+    if (res.deadlock) cards.unshift(card('Deadlock', `la t = ${res.deadlock.t}`, verdict('bad', 'blocate definitiv')));
+    $('r-cards').innerHTML = cards.join('');
+  }
+
+  function drawResBounds(parsed) {
+    const res = rs.result;
+    const b = S.blockingBounds(parsed);
+    const cyc = S.lockOrderCycle(parsed);
+    const order = parsed.map((t, i) => i).sort((a, c) => parsed[c].prio - parsed[a].prio);
+    const cell = (v, proto) => {
+      if (cyc && (proto === 'none' || proto === 'pip')) return '<span class="bad">deadlock posibil</span>';
+      if (v === null) return '<span class="bad">nemărginit</span>';
+      return `${v} ms`;
+    };
+    const cur = rs.proto;
+    const rows = order.map(i => {
+      const x = b[i], obs = res.stats[i].inversion;
+      const bound = cur === 'none' ? x.none : (cur === 'pip' ? x.pip : x.ceiling);
+      const ok = !(cyc && (cur === 'none' || cur === 'pip')) && bound !== null && obs <= bound;
+      return `<tr><td><span class="sw" style="background:${color(i)}"></span>${esc(parsed[i].name)}</td>
+        <td>${x.matter.length ? x.matter.join(', ') : '—'}</td>
+        <td class="num ${cur === 'none' ? 'cur' : ''}">${cell(x.none, 'none')}</td>
+        <td class="num ${cur === 'pip' ? 'cur' : ''}">${cell(x.pip, 'pip')}</td>
+        <td class="num ${cur === 'icpp' || cur === 'pcp' ? 'cur' : ''}">${cell(x.ceiling, 'ceil')}</td>
+        <td class="num">${res.deadlock && res.stats[i].R === null ? '—' : obs + ' ms'}</td>
+        <td>${res.deadlock && res.stats[i].R === null ? verdict('bad', 'blocat definitiv') : (ok ? verdict('ok', 'în margine') : verdict('maybe', 'fără margine'))}</td></tr>`;
+    }).join('');
+    const ceilTxt = res.lockNames.map(S => `${S}: ${res.ceil[S]}`).join(', ');
+    $('r-bounds').innerHTML = `<p>Plafoanele zăvoarelor (prioritatea celui mai prioritar task care le folosește): ${ceilTxt || '—'}.
+      Un zăvor contează pentru un task dacă îl folosește un task mai puțin prioritar și dacă plafonul lui este cel puțin egal cu prioritatea taskului.</p>
+      <div class="table-wrap"><table><thead><tr><th>Task, în ordinea priorității</th><th>Zăvoare care contează</th>
+      <th>B fără protocol</th><th>B cu moștenire</th><th>B cu plafon</th><th>Așteptare observată (protocolul ales)</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+      <p class="note">Cu plafon, un job este blocat de cel mult o secțiune critică: B este cea mai lungă dintre ele. Cu moștenire,
+      cel mult una pentru fiecare task mai puțin prioritar și pentru fiecare zăvor: B este cea mai mică dintre cele două sume.
+      Fără protocol, blocarea devine nemărginită când un task de prioritate intermediară poate rula cât timp taskul așteaptă.
+      Așteptarea observată numără momentele în care taskul era gata sau blocat, iar procesorul rula un task mai puțin prioritar.</p>
+      ${cyc ? `<p>${verdict('bad', 'Atenție')} Zăvoarele sunt luate imbricat în ordini contrare (${cyc.join(' → ')}): fără plafon este posibil deadlockul, iar marginile nu mai au sens.</p>` : ''}`;
+  }
 
   /* ===================== Legendă: exemplu adnotat ===================== */
   function renderHelp() {
@@ -867,7 +1092,7 @@
   }
 
   /* ===================== file și adresă ===================== */
-  const renderers = { model: renderModel, arrivals: renderArrivals, types: () => showType(tyType), sched: () => runSched(), help: renderHelp };
+  const renderers = { model: renderModel, arrivals: renderArrivals, types: () => showType(tyType), sched: () => runSched(), res: () => runRes(), help: renderHelp };
   let current = 'model';
   function show(tab) {
     if (!renderers[tab]) tab = 'model';
@@ -876,17 +1101,21 @@
     document.querySelectorAll('.tab').forEach(s => { s.hidden = s.id !== 'tab-' + tab; });
     if (tab !== 'sched') stopPlay();
     if (tab !== 'types') { spRec.stop(); apRec.stop(); }
+    if (tab !== 'res') stopResPlay();
     renderers[tab]();
   }
   document.querySelectorAll('[role=tab]').forEach(b => b.addEventListener('click', () => {
     const tab = b.dataset.tab;
-    const sub = tab === 'sched' && $('s-preset').value !== 'custom' ? '/' + $('s-preset').value : (tab === 'types' ? '/' + tyType : '');
+    const sub = tab === 'sched' && $('s-preset').value !== 'custom' ? '/' + $('s-preset').value
+      : tab === 'types' ? '/' + tyType
+      : tab === 'res' && $('r-preset').value !== 'custom' ? '/' + $('r-preset').value : '';
     history.replaceState(null, '', '#' + tab + sub);
     show(tab);
   }));
   function fromHash() {
     const [tab, preset] = location.hash.replace('#', '').split('/');
     if (tab === 'types' && preset) tyType = preset;
+    if (tab === 'res' || !rs.tasks.length) loadResPreset(tab === 'res' ? preset : null);
     loadPresetSilently(tab === 'sched' ? preset : null);
     show(tab || 'model');
   }

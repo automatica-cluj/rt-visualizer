@@ -392,6 +392,139 @@
     return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
   }
 
+
+  /**
+   * Diagrama de timp pentru resurse partajate (6.3): rânduri pentru taskuri, pentru
+   * fiecare zăvor (cine îl ține) și pentru procesor.
+   */
+  function resGantt(svg, res, opts) {
+    opts = opts || {};
+    clear(svg);
+    const tasks = res.tasks, H = res.horizon;
+    const W = Math.max(svg.parentNode.clientWidth || 800, 560);
+    const rowH = 52, lockH = 36, top = 12;
+    const nL = res.lockNames.length;
+    const plotBottom = top + tasks.length * rowH + nL * lockH + rowH;
+    const Ht = plotBottom + 34;
+    svg.setAttribute('viewBox', `0 0 ${W} ${Ht}`);
+    svg.setAttribute('width', W);
+    svg.setAttribute('height', Ht);
+    const d = defs(svg, tasks.length);
+    const bp = el('pattern', { id: 'blk', width: 6, height: 6, patternUnits: 'userSpaceOnUse' }, d);
+    el('rect', { width: 6, height: 6, class: 'blk-bg' }, bp);
+    el('path', { d: 'M0,0 L6,6 M6,0 L0,6', class: 'blk-x' }, bp);
+    const scale = (W - LEFT - RIGHT) / H;
+    const x = t => LEFT + t * scale;
+
+    const g = el('g', { class: 'grid' }, svg);
+    if (scale >= 7) for (let t = 0; t <= H; t++) el('line', { x1: x(t), x2: x(t), y1: top, y2: plotBottom, class: 'grid-minor' }, g);
+    const step = niceStep(scale, 34);
+    for (let t = 0; t <= H; t += step) {
+      el('line', { x1: x(t), x2: x(t), y1: top, y2: plotBottom + 4, class: 'grid-major' }, g);
+      text(g, x(t), plotBottom + 18, String(t), { class: 'axis-label', 'text-anchor': 'middle' });
+    }
+    text(g, W - RIGHT, plotBottom + 32, 't (ms)', { class: 'axis-label', 'text-anchor': 'end' });
+
+    const hits = el('g', {}, svg);
+    const marks = el('g', { 'pointer-events': 'none' }, svg);
+    const labels = el('g', { 'pointer-events': 'none' }, svg);
+    const tips = [];
+    svg._tips = tips;
+    const hit = (t0, t1, y0, h, html) => {
+      tips.push(html);
+      el('rect', { x: x(t0), y: y0, width: Math.max((t1 - t0) * scale, 6), height: h, class: 'hit', 'data-tip': tips.length - 1 }, hits);
+    };
+    // intervale cu aceeași stare
+    const runs = (arr, keyf) => {
+      const out = [];
+      for (let t = 0; t < H; t++) {
+        const k = keyf(arr[t], t);
+        const last = out[out.length - 1];
+        if (last && last.k === k && last.t1 === t) last.t1 = t + 1; else out.push({ k, t0: t, t1: t + 1, v: arr[t] });
+      }
+      return out;
+    };
+    const nm = i => tasks[i].name;
+
+    tasks.forEach((task, i) => {
+      const y0 = top + i * rowH, base = y0 + rowH - 10;
+      el('rect', { x: 10, y: base - 24, width: 10, height: 10, rx: 2, style: `fill:${color(i)}` }, marks);
+      text(marks, 26, base - 15, task.name, { class: 'row-label' });
+      text(marks, 26, base - 1, `P = ${task.prio}, r = ${task.r}`, { class: 'row-sub' });
+      el('line', { x1: LEFT, x2: W - RIGHT, y1: base, y2: base, class: 'baseline' }, marks);
+      if (task.r <= H) el('line', { x1: x(task.r) - 1.5, x2: x(task.r) - 1.5, y1: base, y2: base - 40, class: 'rel', 'marker-end': 'url(#arrow-rel)' }, marks);
+      const tl = res.timeline[i];
+      runs(tl, st => [st.s, st.held.join(','), st.prio, st.donor, st.S, st.by, st.ceiling].join('|')).forEach(rn => {
+        const st = rn.v, w = (rn.t1 - rn.t0) * scale, x0 = x(rn.t0);
+        const boosted = st.donor !== undefined && st.prio > task.prio;
+        if (st.s === 'run') {
+          const cs = st.held.length ? st.held[st.held.length - 1] : null;
+          el('rect', { x: x0 + 0.5, y: base - 20, width: Math.max(w - 1, 1), height: 20, rx: 3, style: `fill:${color(i)}` }, marks);
+          if (cs) {
+            el('rect', { x: x0 + 0.5, y: base - 20, width: Math.max(w - 1, 1), height: 5, class: 'cs-bar' }, marks);
+            if (w > 16) text(marks, x0 + w / 2, base - 4, st.held.join('·'), { class: 'exec-label', 'text-anchor': 'middle' });
+          }
+          if (boosted) {
+            el('rect', { x: x0 + 0.5, y: base - 28, width: Math.max(w - 1, 1), height: 6, rx: 2, style: `fill:${color(st.donor)}`, class: 'boost' }, marks);
+            if (w > 40) text(labels, x0 + 3, base - 31, `P = ${st.prio}`, { class: 'boost-label' });
+          }
+          hit(rn.t0, rn.t1, y0 + 2, rowH - 4,
+            `<b>${esc(nm(i))}</b> rulează, ${rn.t0}–${rn.t1}` +
+            (cs ? `<br>în secțiunea critică pe ${st.held.join(', ')}` : '') +
+            (boosted ? `<br>cu prioritatea ${st.prio}, ${res.protocol === 'icpp' ? 'plafonul zăvorului luat' : 'moștenită de la ' + esc(nm(st.donor))} (a lui: ${task.prio})` : ''));
+        } else if (st.s === 'ready') {
+          el('rect', { x: x0, y: base - 16, width: w, height: 14, style: `fill:url(#hatch-${i})` }, marks);
+          hit(rn.t0, rn.t1, y0 + 2, rowH - 4, `<b>${esc(nm(i))}</b> este gata (Ready), ${rn.t0}–${rn.t1}, dar rulează un task cu prioritate activă cel puțin egală` +
+            (boosted ? `<br>prioritatea lui este acum ${st.prio}` : ''));
+        } else if (st.s === 'blocked') {
+          el('rect', { x: x0, y: base - 16, width: w, height: 14, style: 'fill:url(#blk)', class: 'blk-box' }, marks);
+          if (w > 58) text(labels, x0 + 4, base - 5, st.ceiling ? `plafon (${st.S} e liber)` : `așteaptă ${st.S}`, { class: 'blk-label' });
+          hit(rn.t0, rn.t1, y0 + 2, rowH - 4, `<b>${esc(nm(i))}</b> este blocat (Blocked), ${rn.t0}–${rn.t1}<br>` +
+            (st.ceiling ? `cere zăvorul ${st.S}, care este liber, dar plafonul unui zăvor ținut de ${esc(nm(st.by))} nu este mai mic decât prioritatea lui: blocare de plafon`
+              : `așteaptă zăvorul ${st.S}, ținut de ${esc(nm(st.by))}`));
+        }
+      });
+    });
+
+    res.lockNames.forEach((S, k) => {
+      const y0 = top + tasks.length * rowH + k * lockH, base = y0 + lockH - 8;
+      text(marks, 10, base - 12, `zăvorul ${S}`, { class: 'row-label' });
+      text(marks, 10, base + 1, `plafon ${res.ceil[S]}`, { class: 'row-sub' });
+      el('line', { x1: LEFT, x2: W - RIGHT, y1: base, y2: base, class: 'baseline' }, marks);
+      runs(res.holders[S], v => String(v)).forEach(rn => {
+        if (rn.v === null) return;
+        const w = (rn.t1 - rn.t0) * scale;
+        el('rect', { x: x(rn.t0) + 0.5, y: base - 14, width: Math.max(w - 1, 1), height: 14, rx: 3, style: `fill:${color(rn.v)}`, class: 'lock-held' }, marks);
+        if (w > 30) text(marks, x(rn.t0) + w / 2, base - 3, nm(rn.v), { class: 'exec-label', 'text-anchor': 'middle' });
+        hit(rn.t0, rn.t1, y0, lockH, `zăvorul <b>${S}</b> este ținut de <b>${esc(nm(rn.v))}</b>, ${rn.t0}–${rn.t1}`);
+      });
+    });
+
+    const yc = top + tasks.length * rowH + nL * lockH, bc = yc + rowH - 10;
+    text(marks, 10, bc - 15, 'Procesor', { class: 'row-label' });
+    el('line', { x1: LEFT, x2: W - RIGHT, y1: bc, y2: bc, class: 'baseline' }, marks);
+    const runner = [];
+    for (let t = 0; t < H; t++) runner.push(tasks.findIndex((_, i) => res.timeline[i][t].s === 'run'));
+    runs(runner, v => String(v)).forEach(rn => {
+      const w = (rn.t1 - rn.t0) * scale;
+      if (rn.v >= 0) el('rect', { x: x(rn.t0) + 0.5, y: bc - 20, width: Math.max(w - 1, 1), height: 20, rx: 3, style: `fill:${color(rn.v)}` }, marks);
+      else el('rect', { x: x(rn.t0), y: bc - 3, width: w, height: 3, class: 'idle' }, marks);
+    });
+    if (res.deadlock) {
+      const t0 = res.deadlock.t;
+      el('rect', { x: x(t0), y: top, width: x(H) - x(t0), height: plotBottom - top, class: 'deadlock-zone' }, marks);
+      text(labels, x(t0) + 6, bc - 6, `deadlock: ${res.deadlock.tasks.map(nm).join(' și ')} se așteaptă reciproc`, { class: 'miss-label' });
+    }
+    if (opts.cursor !== undefined && opts.cursor !== null) {
+      const cx = x(opts.cursor);
+      el('line', { x1: cx, x2: cx, y1: top - 6, y2: plotBottom, class: 'cursor' }, svg);
+      el('rect', { x: cx - 22, y: plotBottom + 4, width: 44, height: 18, rx: 4, class: 'cursor-tag' }, svg);
+      text(svg, cx, plotBottom + 17, `t = ${opts.cursor}`, { class: 'cursor-text', 'text-anchor': 'middle' });
+    }
+    return { toTime: px => (px - LEFT) / scale, left: LEFT };
+  }
+  function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
   /** Tooltip comun tuturor graficelor. */
   const RTTip = {
     node: null,
@@ -413,6 +546,6 @@
     hide() { if (this.node) this.node.style.display = 'none'; }
   };
 
-  root.RTRender = { gantt, lineChart, barChart, color };
+  root.RTRender = { gantt, resGantt, lineChart, barChart, color };
   root.RTTip = RTTip;
 })(window);

@@ -166,3 +166,66 @@ test('server: cel mult Q în orice fereastră Ts; dacă RTA trece, periodicele n
   }
   assert.ok(checked > 50);
 });
+
+/* ---------- inversiunea de prioritate (6.3) ---------- */
+const task = (name, prio, r, prog) => ({ name, prio, r, ops: S.parseProgram(prog).ops });
+const drawing = (res, i) => res.timeline[i].slice(0, res.horizon)
+  .map(st => (st.s === 'run' ? (st.held.length ? 'Z' : '#') : { ready: '-', blocked: 'x' }[st.s] || '.')).join('');
+const drone = () => [task('H', 3, 1, '1 [S 2]'), task('M', 2, 3, '8'), task('L', 1, 0, '[S 4] 1')];
+
+test('programul unui task: secțiuni critice imbricate și erori', () => {
+  assert.deepEqual(S.parseProgram('1 [A 2 [B 1]] 1').ops.map(o => o.op + (o.S || o.n)),
+    ['calc1', 'lockA', 'calc2', 'lockB', 'calc1', 'unlockB', 'unlockA', 'calc1']);
+  assert.deepEqual(S.criticalSections(S.parseProgram('[A 2 [B 1]]').ops), [{ S: 'A', len: 3 }, { S: 'B', len: 1 }]);
+  assert.ok(S.parseProgram('1 [S 2').error);
+  assert.ok(S.parseProgram('1 ] 2').error);
+  assert.ok(S.parseProgram('abc').error);
+});
+
+test('drona din 6.3: diagramele fără protocol, cu moștenire și cu plafon imediat', () => {
+  const none = S.simulateResources(drone(), 'none');
+  assert.equal(drawing(none, 0), '.#xxxxxxxxxxxZZ.');
+  assert.equal(drawing(none, 1), '...########.....');
+  assert.equal(drawing(none, 2), 'Z-Z--------ZZ--#');
+  const pip = S.simulateResources(drone(), 'pip');
+  assert.equal(drawing(pip, 0), '.#xxxZZ.........');
+  assert.equal(drawing(pip, 1), '...----########.');
+  assert.equal(drawing(pip, 2), 'Z-ZZZ----------#');
+  assert.equal(pip.timeline[2][2].prio, 3);            // L rulează cu prioritatea lui H
+  const icpp = S.simulateResources(drone(), 'icpp');
+  assert.equal(drawing(icpp, 0), '.---#ZZ.........');   // H pornește abia după ce L eliberează zăvorul
+  assert.equal(icpp.stats[0].R, 6);
+});
+
+test('deadlock cu zăvoare în ordine inversă: doar protocoalele cu plafon îl previn', () => {
+  const set = () => [task('τ1', 2, 1, '[B 1 [A 1]]'), task('τ2', 1, 0, '[A 2 [B 1]]')];
+  assert.equal(S.simulateResources(set(), 'none').deadlock.t, 3);
+  assert.equal(S.simulateResources(set(), 'pip').deadlock.t, 3);
+  assert.equal(S.simulateResources(set(), 'icpp').deadlock, null);
+  const pcp = S.simulateResources(set(), 'pcp');
+  assert.equal(pcp.deadlock, null);
+  assert.ok(pcp.events.some(e => e.kind === 'ceiling' && e.task === 0));   // blocare de plafon
+  assert.deepEqual(S.lockOrderCycle(set()), ['B', 'A', 'B']);
+});
+
+test('blocare în lanț: sub moștenire H plătește două secțiuni critice, sub plafon una', () => {
+  const set = () => [task('H', 3, 2, '[S1 1] [S2 1] 1'), task('L1', 2, 1, '[S1 3] 1'), task('L2', 1, 0, '[S2 4] 1')];
+  const pip = S.simulateResources(set(), 'pip');
+  assert.equal(pip.stats[0].blocked, 5);
+  assert.equal(pip.events.filter(e => e.kind === 'block' && e.task === 0).length, 2);
+  for (const p of ['icpp', 'pcp']) assert.equal(S.simulateResources(set(), p).stats[0].R, 5);
+});
+
+test('marginile blocării B_i (6.3, secțiunea 6)', () => {
+  const b = S.blockingBounds(drone());
+  assert.deepEqual([b[0].pip, b[0].ceiling, b[0].none], [4, 4, null]);   // H: nemărginită fără protocol, din cauza lui M
+  assert.deepEqual([b[1].pip, b[1].ceiling, b[1].none], [4, 4, 0]);      // M: prin împingere
+  assert.deepEqual([b[2].pip, b[2].ceiling], [0, 0]);
+  const ch = S.blockingBounds([task('H', 3, 2, '[S1 1] [S2 1] 1'), task('L1', 2, 1, '[S1 3] 1'), task('L2', 1, 0, '[S2 4] 1')]);
+  assert.deepEqual([ch[0].pip, ch[0].ceiling], [7, 4]);
+  // în simulare, blocarea observată nu depășește niciodată marginea
+  for (const p of ['pip', 'icpp', 'pcp']) {
+    const r = S.simulateResources(drone(), p);
+    r.stats.forEach((st, i) => assert.ok(st.inversion <= b[i][p === 'pip' ? 'pip' : 'ceiling']));
+  }
+});
