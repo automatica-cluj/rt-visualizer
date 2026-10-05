@@ -1,5 +1,9 @@
 # Vizualizator timp real
 
+*Real-Time Visualizer: interactive demos for the Real-Time Systems course (UTCN).
+The page is available in Romanian and English; use the RO/EN button in the
+header or open it with `?lang=en`.*
+
 Demonstrații interactive pentru cursul **Sisteme de Timp Real** (UTCN). Studenții
 modifică parametrii unui task sau ai unui set de taskuri și văd imediat, pe axa
 timpului, eliberările, termenele-limită, execuția, timpul de răspuns, laxitatea
@@ -35,6 +39,23 @@ taskuri mixte, planificare nepreemptivă, EDF față de LLF.
 
 ![Inversiunea de prioritate](docs/inversion.png)
 
+## Limba: română și engleză
+
+Butonul RO/EN din antet schimbă limba întregii pagini; alegerea se păstrează în
+browser. Adresa poate impune limba, util pentru includerea în alte pagini:
+`index.html?lang=en#res/pathfinder`.
+
+- Textul fix al paginii rămâne în română în `index.html`. Fiecare element are o
+  cheie, de exemplu `data-i18n="model.13"`, iar traducerea engleză este în
+  `js/i18n.js`, la aceeași cheie. Testul `tests/i18n.test.js` eșuează dacă o
+  cheie din pagină nu are text în engleză.
+- Textul generat de cod se scrie în perechi, `L('text român', 'English text')`,
+  ca ambele limbi să fie modificate împreună. În exemple (`js/presets.js`),
+  titlurile, notele și numele taskurilor sunt perechi `{ ro, en }`.
+- Termenii englezi sunt cei din FreeRTOS, Linux și literatură (release,
+  deadline, response time, laxity, priority inheritance, ceiling). Numerele
+  folosesc virgula zecimală în română și punctul în engleză.
+
 ## Rulare locală
 
 ```bash
@@ -65,13 +86,15 @@ index.html#res/pathfinder      (blocare, pathfinder, lant, deadlock, icpp)
 ## Structură
 
 ```text
-index.html          paginile celor patru file
+index.html          pagina, cu toate filele (textul fix, în română)
 css/style.css       temă luminoasă și întunecată, paleta taskurilor
+js/i18n.js          limba paginii și textul englez al elementelor din index.html
 js/sim.js           motorul de simulare, fără DOM (eliberări, planificatoare, analiză)
 js/render.js        diagrama de timp și graficele, în SVG
 js/presets.js       exemplele din filele 4 și 5
 js/app.js           legătura dintre controale și desene
 tests/sim.test.js   verifică motorul pe exemplele din curs
+tests/i18n.test.js  verifică traducerea: fiecare cheie din pagină are text în engleză
 ```
 
 Pentru un exemplu nou, adăugați un obiect în `js/presets.js`. Modelul de

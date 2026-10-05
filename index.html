@@ -3,115 +3,116 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Vizualizator timp real</title>
+  <title data-i18n="hdr.1">Vizualizator timp real</title>
   <meta name="description" content="Demonstrații interactive pentru cursul Sisteme de Timp Real: modelul de task, eliberări periodice, sporadice și aperiodice, planificare RM, DM, EDF, LLF, încărcarea procesorului și inversiunea de prioritate.">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <header class="top">
   <div class="brand">
-    <h1>Vizualizator timp real</h1>
-    <p>Sisteme de Timp Real, UTCN: modelul de task și planificarea, văzute pe axa timpului</p>
+    <h1 data-i18n="hdr.2">Vizualizator timp real</h1>
+    <p data-i18n="hdr.3">Sisteme de Timp Real, UTCN: modelul de task și planificarea, văzute pe axa timpului</p>
   </div>
-  <button id="theme" class="ghost" type="button" title="Schimbă tema">Temă</button>
+  <div class="top-actions"><button id="lang" class="ghost" type="button">EN</button>
+  <button id="theme" class="ghost" type="button" title="Schimbă tema" data-i18n-title="a.1" data-i18n="hdr.4">Temă</button></div>
 </header>
 
 <nav class="tabs" role="tablist">
-  <button role="tab" data-tab="model" aria-selected="true">1. Modelul de task</button>
-  <button role="tab" data-tab="arrivals">2. Periodic, sporadic, aperiodic</button>
-  <button role="tab" data-tab="types">3. Fiecare tip în detaliu</button>
-  <button role="tab" data-tab="sched">4. Planificare și încărcare</button>
-  <button role="tab" data-tab="res">5. Inversiunea de prioritate</button>
-  <button role="tab" data-tab="help">Legendă</button>
+  <button role="tab" data-tab="model" aria-selected="true" data-i18n="nav.1">1. Modelul de task</button>
+  <button role="tab" data-tab="arrivals" data-i18n="nav.2">2. Periodic, sporadic, aperiodic</button>
+  <button role="tab" data-tab="types" data-i18n="nav.3">3. Fiecare tip în detaliu</button>
+  <button role="tab" data-tab="sched" data-i18n="nav.4">4. Planificare și încărcare</button>
+  <button role="tab" data-tab="res" data-i18n="nav.5">5. Inversiunea de prioritate</button>
+  <button role="tab" data-tab="help" data-i18n="nav.6">Legendă</button>
 </nav>
 
 <main>
   <!-- 1. Modelul de task ------------------------------------------------>
   <section id="tab-model" class="tab" role="tabpanel">
-    <p class="lead">Un task este redus la câteva numere: momentul primei eliberări
+    <p class="lead" data-i18n="model.1">Un task este redus la câteva numere: momentul primei eliberări
       $r_0$, timpul de calcul $C$, perioada $T$ și termenul-limită relativ $D$.
       Modificați-le și urmăriți cum se mută eliberările (săgeți în sus),
       termenele-limită absolute $d_k = r_k + D$ (săgeți în jos), timpul de
       răspuns $R$ și laxitatea $X(t)$.</p>
     <div class="controls">
       <fieldset>
-        <legend>Taskul analizat</legend>
-        <label>Timp de calcul $C$ <input type="range" id="m-C" min="1" max="12" value="3"><output></output></label>
-        <label>Perioadă $T$ <input type="range" id="m-T" min="2" max="20" value="10"><output></output></label>
-        <label>Termen-limită $D$ ($\le T$) <input type="range" id="m-D" min="1" max="10" value="8"><output></output></label>
-        <label>Prima eliberare $r_0$ <input type="range" id="m-r" min="0" max="10" value="0"><output></output></label>
+        <legend data-i18n="model.2">Taskul analizat</legend>
+        <label><span data-i18n="model.3">Timp de calcul $C$</span> <input type="range" id="m-C" min="1" max="12" value="3"><output></output></label>
+        <label><span data-i18n="model.4">Perioadă $T$</span> <input type="range" id="m-T" min="2" max="20" value="10"><output></output></label>
+        <label><span data-i18n="model.5">Termen-limită $D$ ($\le T$)</span> <input type="range" id="m-D" min="1" max="10" value="8"><output></output></label>
+        <label><span data-i18n="model.6">Prima eliberare $r_0$</span> <input type="range" id="m-r" min="0" max="10" value="0"><output></output></label>
       </fieldset>
       <fieldset>
-        <legend>Un task mai prioritar (interferență)</legend>
-        <label class="check"><input type="checkbox" id="m-hp" checked> activ</label>
-        <label>$C_h$ <input type="range" id="m-hC" min="1" max="8" value="2"><output></output></label>
-        <label>$T_h$ <input type="range" id="m-hT" min="2" max="30" value="12"><output></output></label>
-        <label>Prima eliberare <input type="range" id="m-hr" min="0" max="15" value="2"><output></output></label>
+        <legend data-i18n="model.7">Un task mai prioritar (interferență)</legend>
+        <label class="check"><input type="checkbox" id="m-hp" checked> <span data-i18n="model.8">activ</span></label>
+        <label><span data-i18n="model.9">$C_h$</span> <input type="range" id="m-hC" min="1" max="8" value="2"><output></output></label>
+        <label><span data-i18n="model.10">$T_h$</span> <input type="range" id="m-hT" min="2" max="30" value="12"><output></output></label>
+        <label><span data-i18n="model.11">Prima eliberare</span> <input type="range" id="m-hr" min="0" max="15" value="2"><output></output></label>
       </fieldset>
     </div>
     <details class="try" open>
-      <summary>De încercat</summary>
+      <summary data-i18n="model.12">De încercat</summary>
       <ol>
-        <li>Mutați prima eliberare a taskului mai prioritar de la 2 la 4. Jobul 0 nu mai este întrerupt,
+        <li data-i18n="model.13">Mutați prima eliberare a taskului mai prioritar de la 2 la 4. Jobul 0 nu mai este întrerupt,
           iar $R_0$ scade de la 5 la 3, adică exact $C$: timpul de răspuns depinde de cum se suprapun
           eliberările (instantul critic, 3.2).</li>
-        <li>Micșorați $D$ la 4. Cât timp jobul 0 așteaptă, laxitatea lui scade sub zero, iar termenul este ratat.</li>
-        <li>Măriți $C_h$ la 6. Jobul 0 așteaptă 6 ms și își ratează termenul, deși $U = 0{,}80 &lt; 1$.</li>
-        <li>Debifați taskul mai prioritar: fiecare job rulează fără oprire, $R = C$, iar laxitatea rămâne constantă.</li>
+        <li data-i18n="model.14">Micșorați $D$ la 4. Cât timp jobul 0 așteaptă, laxitatea lui scade sub zero, iar termenul este ratat.</li>
+        <li data-i18n="model.15">Măriți $C_h$ la 6. Jobul 0 așteaptă 6 ms și își ratează termenul, deși $U = 0{,}80 &lt; 1$.</li>
+        <li data-i18n="model.16">Debifați taskul mai prioritar: fiecare job rulează fără oprire, $R = C$, iar laxitatea rămâne constantă.</li>
       </ol>
     </details>
     <div class="figure">
-      <div class="fig-title">Diagrama de timp</div>
-      <div class="svgwrap"><svg id="m-gantt" role="img" aria-label="Diagrama de timp a taskului"></svg></div>
+      <div class="fig-title" data-i18n="model.17">Diagrama de timp</div>
+      <div class="svgwrap"><svg id="m-gantt" role="img" aria-label="Diagrama de timp a taskului" data-i18n-aria="a.2"></svg></div>
       <div class="key" data-key="exec|ready|rel|dl|miss|dim|idle"></div>
     </div>
     <div class="cards" id="m-cards"></div>
     <div class="figure">
-      <div class="fig-title">Laxitatea $X(t) = (d_k - t) - c(t)$ a fiecărui job al taskului analizat</div>
-      <div class="svgwrap"><svg id="m-lax" role="img" aria-label="Laxitatea în timp"></svg></div>
-      <p class="note">Cât timp jobul rulează, laxitatea rămâne constantă; cât timp așteaptă în Ready,
+      <div class="fig-title" data-i18n="model.18">Laxitatea $X(t) = (d_k - t) - c(t)$ a fiecărui job al taskului analizat</div>
+      <div class="svgwrap"><svg id="m-lax" role="img" aria-label="Laxitatea în timp" data-i18n-aria="a.3"></svg></div>
+      <p class="note" data-i18n="model.19">Cât timp jobul rulează, laxitatea rămâne constantă; cât timp așteaptă în Ready,
         scade cu o unitate la fiecare pas. Sub zero, termenul va fi ratat orice ar face planificatorul.</p>
     </div>
   </section>
 
   <!-- 2. Tipuri de eliberări -------------------------------------------->
   <section id="tab-arrivals" class="tab" role="tabpanel" hidden>
-    <p class="lead">Trei taskuri cu același $C$ și același $T$, fiecare singur pe procesor.
+    <p class="lead" data-i18n="arrivals.1">Trei taskuri cu același $C$ și același $T$, fiecare singur pe procesor.
       Diferă doar ce se știe despre eliberări: la cel <b>periodic</b> toate momentele,
       la cel <b>sporadic</b> doar că între două eliberări trec cel puțin $T$ unități,
       la cel <b>aperiodic</b> nimic (aici $T$ este doar intervalul mediu).</p>
     <details class="try" open>
-      <summary>De încercat</summary>
+      <summary data-i18n="arrivals.2">De încercat</summary>
       <ol>
-        <li>Apăsați de câteva ori „Alt scenariu aleator” și urmăriți ultima coloană a tabelului: la taskul
+        <li data-i18n="arrivals.3">Apăsați de câteva ori „Alt scenariu aleator” și urmăriți ultima coloană a tabelului: la taskul
           sporadic rămâne mereu 1, la cel aperiodic apar rafale de 2, 3 sau mai multe eliberări.</li>
-        <li>În grafic, linia taskului sporadic nu trece niciodată deasupra liniei celui periodic. De aceea
+        <li data-i18n="arrivals.4">În grafic, linia taskului sporadic nu trece niciodată deasupra liniei celui periodic. De aceea
           analiza îl poate trata ca pe un task periodic cu perioada $T_{min}$.</li>
-        <li>Micșorați $T$ spre valoarea lui $C$: la taskul aperiodic, joburile unei rafale ajung să aștepte
+        <li data-i18n="arrivals.5">Micșorați $T$ spre valoarea lui $C$: la taskul aperiodic, joburile unei rafale ajung să aștepte
           unele după altele (benzile hașurate).</li>
       </ol>
     </details>
     <div class="controls">
       <fieldset>
-        <legend>Parametri</legend>
-        <label>Timp de calcul $C$ <input type="range" id="a-C" min="1" max="10" value="3"><output></output></label>
-        <label>$T$ (perioadă / interval minim / interval mediu) <input type="range" id="a-T" min="4" max="30" value="10"><output></output></label>
-        <label>Durata afișată <input type="range" id="a-H" min="40" max="300" step="10" value="120"><output></output></label>
-        <button id="a-seed" type="button">Alt scenariu aleator</button>
+        <legend data-i18n="arrivals.6">Parametri</legend>
+        <label><span data-i18n="arrivals.7">Timp de calcul $C$</span> <input type="range" id="a-C" min="1" max="10" value="3"><output></output></label>
+        <label><span data-i18n="arrivals.8">$T$ (perioadă / interval minim / interval mediu)</span> <input type="range" id="a-T" min="4" max="30" value="10"><output></output></label>
+        <label><span data-i18n="arrivals.9">Durata afișată</span> <input type="range" id="a-H" min="40" max="300" step="10" value="120"><output></output></label>
+        <button id="a-seed" type="button" data-i18n="arrivals.10">Alt scenariu aleator</button>
       </fieldset>
     </div>
     <div class="figure">
-      <div class="fig-title">Eliberări și execuție</div>
-      <div class="svgwrap"><svg id="a-gantt" role="img" aria-label="Eliberările celor trei tipuri de task"></svg></div>
-      <div class="key" data-key="exec|ready:eliberat, așteaptă jobul precedent|rel"></div>
+      <div class="fig-title" data-i18n="arrivals.11">Eliberări și execuție</div>
+      <div class="svgwrap"><svg id="a-gantt" role="img" aria-label="Eliberările celor trei tipuri de task" data-i18n-aria="a.4"></svg></div>
+      <div class="key" data-key="exec|readyPrev|rel"></div>
     </div>
     <div class="figure">
-      <div class="fig-title">Cererea de procesor cumulată: suma lui $C$ pentru joburile eliberate până la $t$</div>
-      <div class="svgwrap"><svg id="a-demand" role="img" aria-label="Cererea de procesor cumulată"></svg></div>
+      <div class="fig-title" data-i18n="arrivals.12">Cererea de procesor cumulată: suma lui $C$ pentru joburile eliberate până la $t$</div>
+      <div class="svgwrap"><svg id="a-demand" role="img" aria-label="Cererea de procesor cumulată" data-i18n-aria="a.5"></svg></div>
       <div class="legend" id="a-legend"></div>
     </div>
     <div class="table-wrap"><table id="a-table"></table></div>
-    <p class="note">Pentru analiză, taskul sporadic se tratează ca unul periodic cu perioada egală cu
+    <p class="note" data-i18n="arrivals.13">Pentru analiză, taskul sporadic se tratează ca unul periodic cu perioada egală cu
       intervalul minim: cererea lui nu poate depăși niciodată linia celui periodic pe nicio fereastră.
       Taskul aperiodic nu are o astfel de margine: o rafală poate aduce oricâte eliberări într-o fereastră.</p>
   </section>
@@ -119,183 +120,183 @@
 
   <!-- 3. Fiecare tip în detaliu ------------------------------------------>
   <section id="tab-types" class="tab" role="tabpanel" hidden>
-    <div class="seg" role="group" aria-label="Tipul de task">
-      <button type="button" data-type="periodic" aria-pressed="true">Periodic</button>
-      <button type="button" data-type="sporadic" aria-pressed="false">Sporadic</button>
-      <button type="button" data-type="aperiodic" aria-pressed="false">Aperiodic</button>
+    <div class="seg" role="group" aria-label="Tipul de task" data-i18n-aria="a.6">
+      <button type="button" data-type="periodic" aria-pressed="true" data-i18n="types.1">Periodic</button>
+      <button type="button" data-type="sporadic" aria-pressed="false" data-i18n="types.2">Sporadic</button>
+      <button type="button" data-type="aperiodic" aria-pressed="false" data-i18n="types.3">Aperiodic</button>
     </div>
 
     <!-- Periodic -->
     <div id="ty-periodic" class="subview">
-      <p class="lead">Același task periodic, cu aceleași durate $C_k$ și aceleași întârzieri
+      <p class="lead" data-i18n="per.1">Același task periodic, cu aceleași durate $C_k$ și aceleași întârzieri
         $\varepsilon_k$ (latența trezirii, preempțiuni), programat în două feluri.
         Cu <b>așteptare absolută</b> taskul se trezește pe grila $r_k = kT$ (liniile punctate);
         cu <b>așteptare relativă</b> se trezește la $T$ după ce a terminat, iar abaterea se adună.</p>
       <div class="controls">
         <fieldset>
-          <legend>Taskul</legend>
-          <label>Perioadă $T$ <input type="range" id="p-T" min="4" max="20" value="10"><output></output></label>
-          <label>Timp de calcul maxim $C$ <input type="range" id="p-C" min="1" max="12" value="3"><output></output></label>
-          <label>Timp de calcul minim <input type="range" id="p-Cmin" min="1" max="12" value="2"><output></output></label>
+          <legend data-i18n="per.2">Taskul</legend>
+          <label><span data-i18n="per.3">Perioadă $T$</span> <input type="range" id="p-T" min="4" max="20" value="10"><output></output></label>
+          <label><span data-i18n="per.4">Timp de calcul maxim $C$</span> <input type="range" id="p-C" min="1" max="12" value="3"><output></output></label>
+          <label><span data-i18n="per.5">Timp de calcul minim</span> <input type="range" id="p-Cmin" min="1" max="12" value="2"><output></output></label>
         </fieldset>
         <fieldset>
-          <legend>Perturbații</legend>
-          <label>Întârziere maximă $\varepsilon$ <input type="range" id="p-eps" min="0" max="8" value="3"><output></output></label>
-          <label>Număr de joburi <input type="range" id="p-n" min="5" max="40" value="16"><output></output></label>
-          <button id="p-seed" type="button">Alt scenariu aleator</button>
+          <legend data-i18n="per.6">Perturbații</legend>
+          <label><span data-i18n="per.7">Întârziere maximă $\varepsilon$</span> <input type="range" id="p-eps" min="0" max="8" value="3"><output></output></label>
+          <label><span data-i18n="per.8">Număr de joburi</span> <input type="range" id="p-n" min="5" max="40" value="16"><output></output></label>
+          <button id="p-seed" type="button" data-i18n="per.9">Alt scenariu aleator</button>
         </fieldset>
       </div>
       <div class="figure">
-        <div class="fig-title">Pornirile față de grila ideală</div>
-        <div class="svgwrap"><svg id="p-gantt" role="img" aria-label="Așteptare absolută și relativă"></svg></div>
-        <div class="key" data-key="grid|rel:trezire|ready:întârzierea ε până la pornire|exec"></div>
+        <div class="fig-title" data-i18n="per.10">Pornirile față de grila ideală</div>
+        <div class="svgwrap"><svg id="p-gantt" role="img" aria-label="Așteptare absolută și relativă" data-i18n-aria="a.7"></svg></div>
+        <div class="key" data-key="grid|relWake|readyEps|exec"></div>
       </div>
       <div class="cards" id="p-cards"></div>
       <details class="try" open>
-        <summary>De încercat</summary>
+        <summary data-i18n="per.11">De încercat</summary>
         <ol>
-          <li>Puneți $\varepsilon$ la 0 și timpul de calcul minim egal cu cel maxim (3). Cu așteptare relativă,
+          <li data-i18n="per.12">Puneți $\varepsilon$ la 0 și timpul de calcul minim egal cu cel maxim (3). Cu așteptare relativă,
             perioada reală devine $T + C = 13$ ms, iar deriva crește cu 3 ms la fiecare job, ca în exemplul din 2.3.</li>
-          <li>Măriți $\varepsilon$: jitterul crește în ambele variante, dar cu așteptare absolută deriva rămâne 0.</li>
-          <li>Puneți timpul de calcul minim și maxim la 12, cu $T = 10$: jobul nu mai încape în perioadă, iar
+          <li data-i18n="per.13">Măriți $\varepsilon$: jitterul crește în ambele variante, dar cu așteptare absolută deriva rămâne 0.</li>
+          <li data-i18n="per.14">Puneți timpul de calcul minim și maxim la 12, cu $T = 10$: jobul nu mai încape în perioadă, iar
             întârzierea se acumulează și cu așteptare absolută (depășirea perioadei, 2.3).</li>
         </ol>
       </details>
       <div class="split">
         <div class="figure">
-          <div class="fig-title">Întârzierea față de grilă $L_k = s_k - r_k$, job cu job</div>
-          <div class="svgwrap"><svg id="p-lat" role="img" aria-label="Întârzierea față de grilă"></svg></div>
+          <div class="fig-title" data-i18n="per.15">Întârzierea față de grilă $L_k = s_k - r_k$, job cu job</div>
+          <div class="svgwrap"><svg id="p-lat" role="img" aria-label="Întârzierea față de grilă" data-i18n-aria="a.8"></svg></div>
           <div class="legend" id="p-lat-legend"></div>
         </div>
         <div class="figure">
-          <div class="fig-title">Histograma lui $L_k$ cu așteptare absolută</div>
-          <div class="svgwrap"><svg id="p-hist" role="img" aria-label="Histograma întârzierilor"></svg></div>
-          <p class="note">Lățimea distribuției este jitterul $J$. Așteptarea absolută elimină deriva, nu jitterul.</p>
+          <div class="fig-title" data-i18n="per.16">Histograma lui $L_k$ cu așteptare absolută</div>
+          <div class="svgwrap"><svg id="p-hist" role="img" aria-label="Histograma întârzierilor" data-i18n-aria="a.9"></svg></div>
+          <p class="note" data-i18n="per.17">Lățimea distribuției este jitterul $J$. Așteptarea absolută elimină deriva, nu jitterul.</p>
         </div>
       </div>
     </div>
 
     <!-- Sporadic -->
     <div id="ty-sporadic" class="subview" hidden>
-      <p class="lead">Un buton tratat de un task sporadic, mai prioritar decât bucla de reglaj.
+      <p class="lead" data-i18n="spo.1">Un buton tratat de un task sporadic, mai prioritar decât bucla de reglaj.
         Analiza presupune că între două eliberări trec cel puțin $T_{min}$. Apăsați butonul
         (sau tasta spațiu) cât timp curge timpul și alegeți dacă intervalul minim este
         <b>impus</b> de cod sau doar sperat.</p>
       <div class="controls">
         <fieldset>
-          <legend>Taskul sporadic „buton”</legend>
-          <label>$C$ <input type="range" id="sp-C" min="1" max="6" value="2"><output></output></label>
-          <label>Interval minim $T_{min}$ <input type="range" id="sp-T" min="4" max="40" value="15"><output></output></label>
-          <label>Termen-limită $D$ <input type="range" id="sp-D" min="1" max="40" value="6"><output></output></label>
-          <label>Evenimente prea apropiate
+          <legend data-i18n="spo.2">Taskul sporadic „buton”</legend>
+          <label><span data-i18n="spo.3">$C$</span> <input type="range" id="sp-C" min="1" max="6" value="2"><output></output></label>
+          <label><span data-i18n="spo.4">Interval minim $T_{min}$</span> <input type="range" id="sp-T" min="4" max="40" value="15"><output></output></label>
+          <label><span data-i18n="spo.5">Termen-limită $D$</span> <input type="range" id="sp-D" min="1" max="40" value="6"><output></output></label>
+          <label><span data-i18n="spo.6">Evenimente prea apropiate</span>
             <select id="sp-policy">
-              <option value="none">nu se impune nimic</option>
-              <option value="ignore">se ignoră (ca filtrarea din 5.4)</option>
-              <option value="defer">se amână până la Tmin</option>
+              <option value="none" data-i18n="spo.7">nu se impune nimic</option>
+              <option value="ignore" data-i18n="spo.8">se ignoră (ca filtrarea din 5.4)</option>
+              <option value="defer" data-i18n="spo.9">se amână până la Tmin</option>
             </select></label>
           <p class="note" id="sp-policy-note"></p>
         </fieldset>
         <fieldset>
-          <legend>Taskul periodic „reglaj”, mai puțin prioritar</legend>
-          <label>$C$ <input type="range" id="sp-pC" min="1" max="10" value="5"><output></output></label>
-          <label>$T = D$ <input type="range" id="sp-pT" min="5" max="30" value="10"><output></output></label>
+          <legend data-i18n="spo.10">Taskul periodic „reglaj”, mai puțin prioritar</legend>
+          <label><span data-i18n="spo.11">$C$</span> <input type="range" id="sp-pC" min="1" max="10" value="5"><output></output></label>
+          <label><span data-i18n="spo.12">$T = D$</span> <input type="range" id="sp-pT" min="5" max="30" value="10"><output></output></label>
         </fieldset>
         <fieldset>
-          <legend>Evenimente</legend>
+          <legend data-i18n="spo.13">Evenimente</legend>
           <div class="row">
-            <button id="sp-press" type="button" class="primary">Apasă butonul</button>
-            <button id="sp-burst" type="button">Vibrație: 5 fronturi</button>
+            <button id="sp-press" type="button" class="primary" data-i18n="spo.14">Apasă butonul</button>
+            <button id="sp-burst" type="button" data-i18n="spo.15">Vibrație: 5 fronturi</button>
           </div>
           <div class="row">
-            <button id="sp-random" type="button">Apăsări aleatoare</button>
-            <button id="sp-demo" type="button">Exemplul inițial</button>
+            <button id="sp-random" type="button" data-i18n="spo.16">Apăsări aleatoare</button>
+            <button id="sp-demo" type="button" data-i18n="spo.17">Exemplul inițial</button>
           </div>
           <p class="note" id="sp-clock">Primul clic pe „Apasă butonul” pornește o înregistrare nouă de 200 ms.</p>
         </fieldset>
       </div>
       <div class="figure">
-        <div class="fig-title">Evenimente, eliberări și execuție</div>
-        <div class="svgwrap"><svg id="sp-gantt" role="img" aria-label="Taskul sporadic"></svg></div>
+        <div class="fig-title" data-i18n="spo.18">Evenimente, eliberări și execuție</div>
+        <div class="svgwrap"><svg id="sp-gantt" role="img" aria-label="Taskul sporadic" data-i18n-aria="a.10"></svg></div>
         <div class="key" data-key="event|deferred|rejected|exec|ready|rel|dl|miss"></div>
       </div>
       <div class="cards" id="sp-cards"></div>
       <details class="try" open>
-        <summary>De încercat</summary>
+        <summary data-i18n="spo.19">De încercat</summary>
         <ol>
-          <li>În exemplul inițial, vibrația de la 12 ms produce 5 eliberări în 5 ms, iar „reglaj” își ratează
+          <li data-i18n="spo.20">În exemplul inițial, vibrația de la 12 ms produce 5 eliberări în 5 ms, iar „reglaj” își ratează
             un termen. Alegeți „se ignoră”: ratarea dispare, iar garanția analizei redevine valabilă.</li>
-          <li>Alegeți „se amână”: nicio apăsare nu se pierde, dar ultima din vibrație este tratată abia
+          <li data-i18n="spo.21">Alegeți „se amână”: nicio apăsare nu se pierde, dar ultima din vibrație este tratată abia
             după 58 ms (cardul cu timpul de la eveniment la terminare).</li>
-          <li>Porniți o înregistrare cu „Apasă butonul” și apăsați întâi rar, apoi foarte des. Urmăriți
+          <li data-i18n="spo.22">Porniți o înregistrare cu „Apasă butonul” și apăsați întâi rar, apoi foarte des. Urmăriți
             cardul cu cel mai mic interval între eliberări.</li>
         </ol>
       </details>
       <div class="figure">
-        <div class="fig-title">Ce garantează analiza</div>
+        <div class="fig-title" data-i18n="spo.23">Ce garantează analiza</div>
         <div id="sp-analysis"></div>
       </div>
     </div>
 
     <!-- Aperiodic -->
     <div id="ty-aperiodic" class="subview" hidden>
-      <p class="lead">Două taskuri periodice și cereri aperiodice, despre care nu se știe cât de dese
+      <p class="lead" data-i18n="ape.1">Două taskuri periodice și cereri aperiodice, despre care nu se știe cât de dese
         sunt. Alegeți cum sunt servite cererile și urmăriți cine plătește: taskurile periodice
         (termene ratate) sau cererile aperiodice (timp de răspuns mare).</p>
       <div class="controls">
         <fieldset>
-          <legend>Servirea cererilor</legend>
-          <label>Mod
+          <legend data-i18n="ape.2">Servirea cererilor</legend>
+          <label><span data-i18n="ape.3">Mod</span>
             <select id="ap-mode">
-              <option value="high">prioritate maximă</option>
-              <option value="background">în fundal (prioritatea cea mai mică)</option>
-              <option value="server">server cu buget</option>
+              <option value="high" data-i18n="ape.4">prioritate maximă</option>
+              <option value="background" data-i18n="ape.5">în fundal (prioritatea cea mai mică)</option>
+              <option value="server" data-i18n="ape.6">server cu buget</option>
             </select></label>
-          <label>Calcul pe cerere $C_a$ <input type="range" id="ap-C" min="1" max="8" value="2"><output></output></label>
-          <label>Buget $Q$ <input type="range" id="ap-Q" min="1" max="8" value="4"><output></output></label>
-          <label>Perioada serverului $T_s$ <input type="range" id="ap-Ts" min="4" max="30" value="15"><output></output></label>
+          <label><span data-i18n="ape.7">Calcul pe cerere $C_a$</span> <input type="range" id="ap-C" min="1" max="8" value="2"><output></output></label>
+          <label><span data-i18n="ape.8">Buget $Q$</span> <input type="range" id="ap-Q" min="1" max="8" value="4"><output></output></label>
+          <label><span data-i18n="ape.9">Perioada serverului $T_s$</span> <input type="range" id="ap-Ts" min="4" max="30" value="15"><output></output></label>
         </fieldset>
         <fieldset>
-          <legend>Taskurile periodice</legend>
-          <p class="note">senzor $(2, 8)$ și jurnal $(C_j, 25)$, cu priorități RM</p>
-          <label>Timpul de calcul al jurnalului $C_j$ <input type="range" id="ap-jC" min="2" max="16" value="10"><output></output></label>
+          <legend data-i18n="ape.10">Taskurile periodice</legend>
+          <p class="note" data-i18n="ape.11">senzor $(2, 8)$ și jurnal $(C_j, 25)$, cu priorități RM</p>
+          <label><span data-i18n="ape.12">Timpul de calcul al jurnalului $C_j$</span> <input type="range" id="ap-jC" min="2" max="16" value="10"><output></output></label>
         </fieldset>
         <fieldset>
-          <legend>Cereri</legend>
+          <legend data-i18n="ape.13">Cereri</legend>
           <div class="row">
-            <button id="ap-press" type="button" class="primary">Trimite o cerere</button>
-            <button id="ap-burst" type="button">Rafală de 4 cereri</button>
+            <button id="ap-press" type="button" class="primary" data-i18n="ape.14">Trimite o cerere</button>
+            <button id="ap-burst" type="button" data-i18n="ape.15">Rafală de 4 cereri</button>
           </div>
           <div class="row">
-            <button id="ap-random" type="button">Cereri aleatoare</button>
-            <button id="ap-demo" type="button">Exemplul inițial</button>
+            <button id="ap-random" type="button" data-i18n="ape.16">Cereri aleatoare</button>
+            <button id="ap-demo" type="button" data-i18n="ape.17">Exemplul inițial</button>
           </div>
           <p class="note" id="ap-clock">Primul clic pornește o înregistrare nouă de 200 ms.</p>
         </fieldset>
       </div>
       <p class="why" id="ap-mode-note"></p>
       <div class="figure">
-        <div class="fig-title">Diagrama de timp</div>
-        <div class="svgwrap"><svg id="ap-gantt" role="img" aria-label="Servirea cererilor aperiodice"></svg></div>
-        <div class="key" data-key="exec|ready|rel:eliberare sau sosire|dl|miss|idle"></div>
+        <div class="fig-title" data-i18n="ape.18">Diagrama de timp</div>
+        <div class="svgwrap"><svg id="ap-gantt" role="img" aria-label="Servirea cererilor aperiodice" data-i18n-aria="a.11"></svg></div>
+        <div class="key" data-key="exec|ready|relArrival|dl|miss|idle"></div>
       </div>
       <div class="figure" id="ap-budget-fig">
-        <div class="fig-title">Bugetul serverului: scade cât timp servește; fiecare porțiune consumată revine după $T_s$</div>
-        <div class="svgwrap"><svg id="ap-budget" role="img" aria-label="Bugetul serverului"></svg></div>
+        <div class="fig-title" data-i18n="ape.19">Bugetul serverului: scade cât timp servește; fiecare porțiune consumată revine după $T_s$</div>
+        <div class="svgwrap"><svg id="ap-budget" role="img" aria-label="Bugetul serverului" data-i18n-aria="a.12"></svg></div>
       </div>
       <div class="cards" id="ap-cards"></div>
       <div class="figure">
-        <div class="fig-title">Ce garantează analiza pentru taskurile periodice</div>
+        <div class="fig-title" data-i18n="ape.20">Ce garantează analiza pentru taskurile periodice</div>
         <div id="ap-analysis"></div>
       </div>
       <details class="try" open>
-        <summary>De încercat</summary>
+        <summary data-i18n="ape.21">De încercat</summary>
         <ol>
-          <li>Cu „prioritate maximă”, rafala de la 55 ms trece înaintea tuturor și senzorul își ratează un termen.
+          <li data-i18n="ape.22">Cu „prioritate maximă”, rafala de la 55 ms trece înaintea tuturor și senzorul își ratează un termen.
             Alegeți „în fundal”: ratarea dispare, dar cererile așteaptă după jurnal (timp de răspuns mediu de
             aproximativ 10 ms).</li>
-          <li>Alegeți „server cu buget”: periodicele sunt din nou protejate, cererile izolate răspund în 2–3 ms,
+          <li data-i18n="ape.23">Alegeți „server cu buget”: periodicele sunt din nou protejate, cererile izolate răspund în 2–3 ms,
             iar rafala este încetinită la ritmul serverului.</li>
-          <li>Măriți timpul de calcul al jurnalului. În fundal, timpul de răspuns al cererilor crește odată cu
+          <li data-i18n="ape.24">Măriți timpul de calcul al jurnalului. În fundal, timpul de răspuns al cererilor crește odată cu
             încărcarea; cu serverul rămâne același, până când analiza nu mai poate garanta periodicele.</li>
         </ol>
       </details>
@@ -304,43 +305,43 @@
 
   <!-- 4. Planificare ------------------------------------------------------>
   <section id="tab-sched" class="tab" role="tabpanel" hidden>
-    <p class="lead">Alegeți un exemplu sau editați setul de taskuri, apoi algoritmul de planificare.
+    <p class="lead" data-i18n="sched.1">Alegeți un exemplu sau editați setul de taskuri, apoi algoritmul de planificare.
       Diagrama arată cine ocupă procesorul la fiecare moment. Mutați cursorul (clic pe diagramă sau
       butoanele ◀ ▶) și citiți sub diagramă starea fiecărui task și motivul pentru care rulează jobul
       ales. Testele de planificabilitate, la final, spun ce garantează teoria pentru cazul cel mai defavorabil.</p>
     <div class="controls">
       <fieldset class="grow">
-        <legend>Setul de taskuri</legend>
-        <label>Exemplu <select id="s-preset"></select></label>
+        <legend data-i18n="sched.2">Setul de taskuri</legend>
+        <label><span data-i18n="sched.3">Exemplu</span> <select id="s-preset"></select></label>
         <p class="note" id="s-preset-note"></p>
         <div class="table-wrap"><table id="s-tasks" class="edit"></table></div>
         <p class="note" id="s-order"></p>
         <div class="row">
-          <button id="s-add" type="button">Adaugă task</button>
+          <button id="s-add" type="button" data-i18n="sched.4">Adaugă task</button>
         </div>
       </fieldset>
       <fieldset>
-        <legend>Planificator</legend>
-        <label>Algoritm <select id="s-policy"></select></label>
-        <label class="check"><input type="checkbox" id="s-preempt" checked> preemptiv</label>
-        <label class="check"><input type="checkbox" id="s-varC"> timp de execuție real variabil ($\le C$)</label>
-        <label class="check"><input type="checkbox" id="s-abort"> abandonează jobul la termenul ratat</label>
-        <label>Durata simulării <input type="number" id="s-H" min="5" max="600" value="40"> <span class="hint" id="s-Hhint"></span></label>
-        <button id="s-seed" type="button">Alt scenariu aleator</button>
+        <legend data-i18n="sched.5">Planificator</legend>
+        <label><span data-i18n="sched.6">Algoritm</span> <select id="s-policy"></select></label>
+        <label class="check"><input type="checkbox" id="s-preempt" checked> <span data-i18n="sched.7">preemptiv</span></label>
+        <label class="check"><input type="checkbox" id="s-varC"> <span data-i18n="sched.8">timp de execuție real variabil ($\le C$)</span></label>
+        <label class="check"><input type="checkbox" id="s-abort"> <span data-i18n="sched.9">abandonează jobul la termenul ratat</span></label>
+        <label><span data-i18n="sched.10">Durata simulării</span> <input type="number" id="s-H" min="5" max="600" value="40"> <span class="hint" id="s-Hhint"></span></label>
+        <button id="s-seed" type="button" data-i18n="sched.11">Alt scenariu aleator</button>
       </fieldset>
     </div>
 
     <div class="cards" id="s-cards"></div>
 
     <div class="figure">
-      <div class="fig-title">Diagrama de timp: faceți clic pe diagramă pentru a muta cursorul
+      <div class="fig-title"><span data-i18n="sched.12">Diagrama de timp: faceți clic pe diagramă pentru a muta cursorul</span>
         <span class="player">
-          <button id="s-back" type="button" title="Un pas înapoi">◀</button>
-          <button id="s-play" type="button">Pornește</button>
-          <button id="s-fwd" type="button" title="Un pas înainte">▶</button>
+          <button id="s-back" type="button" title="Un pas înapoi" data-i18n-title="a.13">◀</button>
+          <button id="s-play" type="button" data-i18n="sched.13">Pornește</button>
+          <button id="s-fwd" type="button" title="Un pas înainte" data-i18n-title="a.14">▶</button>
         </span>
       </div>
-      <div class="svgwrap"><svg id="s-gantt" role="img" aria-label="Diagrama de planificare"></svg></div>
+      <div class="svgwrap"><svg id="s-gantt" role="img" aria-label="Diagrama de planificare" data-i18n-aria="a.15"></svg></div>
       <div class="key" data-key="exec|ready|rel|dl|miss|idle|cursor"></div>
     </div>
 
@@ -351,27 +352,27 @@
         <div class="table-wrap"><table id="s-state"></table></div>
       </div>
       <div class="figure">
-        <div class="fig-title">Factorul de utilizare $U = \sum C_i / T_i$</div>
+        <div class="fig-title" data-i18n="sched.14">Factorul de utilizare $U = \sum C_i / T_i$</div>
         <div id="s-ubar"></div>
       </div>
     </div>
 
     <div class="figure">
-      <div class="fig-title">Încărcarea procesorului în timp</div>
+      <div class="fig-title" data-i18n="sched.15">Încărcarea procesorului în timp</div>
       <div class="row">
-        <label>Fereastra de mediere <input type="range" id="s-win" min="1" max="60" value="10"><output></output></label>
+        <label><span data-i18n="sched.16">Fereastra de mediere</span> <input type="range" id="s-win" min="1" max="60" value="10"><output></output></label>
       </div>
-      <div class="svgwrap"><svg id="s-load" role="img" aria-label="Încărcarea procesorului"></svg></div>
+      <div class="svgwrap"><svg id="s-load" role="img" aria-label="Încărcarea procesorului" data-i18n-aria="a.16"></svg></div>
       <div class="legend" id="s-load-legend"></div>
     </div>
 
     <div class="split">
       <div class="figure">
-        <div class="fig-title">Rezultatul simulării, pe taskuri</div>
+        <div class="fig-title" data-i18n="sched.17">Rezultatul simulării, pe taskuri</div>
         <div class="table-wrap"><table id="s-stats"></table></div>
       </div>
       <div class="figure">
-        <div class="fig-title">Teste de planificabilitate (partea IV)</div>
+        <div class="fig-title" data-i18n="sched.18">Teste de planificabilitate (partea IV)</div>
         <div id="s-analysis"></div>
       </div>
     </div>
@@ -380,48 +381,48 @@
 
   <!-- 5. Inversiunea de prioritate ---------------------------------------->
   <section id="tab-res" class="tab" role="tabpanel" hidden>
-    <p class="lead">Taskurile împart date protejate de un zăvor (lock), de exemplu un mutex. Un task care
+    <p class="lead" data-i18n="res.1">Taskurile împart date protejate de un zăvor (lock), de exemplu un mutex. Un task care
       găsește zăvorul ocupat se blochează până când proprietarul îl eliberează. Alegeți un scenariu din
       pagina 6.3 și un protocol, apoi urmăriți cât așteaptă taskul cel mai prioritar și de ce.</p>
     <div class="controls">
       <fieldset class="grow">
-        <legend>Scenariu</legend>
-        <label>Exemplu <select id="r-preset"></select></label>
+        <legend data-i18n="res.2">Scenariu</legend>
+        <label><span data-i18n="res.3">Exemplu</span> <select id="r-preset"></select></label>
         <p class="note" id="r-preset-note"></p>
       </fieldset>
       <fieldset class="grow">
-        <legend>Protocolul zăvorului</legend>
-        <div class="seg" id="r-proto" role="group" aria-label="Protocol">
-          <button type="button" data-p="none">Fără protocol</button>
-          <button type="button" data-p="pip">Moștenire (PIP)</button>
-          <button type="button" data-p="icpp">Plafon imediat (ICPP)</button>
-          <button type="button" data-p="pcp">Plafon (PCP)</button>
+        <legend data-i18n="res.4">Protocolul zăvorului</legend>
+        <div class="seg" id="r-proto" role="group" aria-label="Protocol" data-i18n-aria="a.17">
+          <button type="button" data-p="none" data-i18n="res.5">Fără protocol</button>
+          <button type="button" data-p="pip" data-i18n="res.6">Moștenire (PIP)</button>
+          <button type="button" data-p="icpp" data-i18n="res.7">Plafon imediat (ICPP)</button>
+          <button type="button" data-p="pcp" data-i18n="res.8">Plafon (PCP)</button>
         </div>
         <p class="note" id="r-proto-note"></p>
       </fieldset>
     </div>
     <details class="try" open>
-      <summary>De încercat</summary>
+      <summary data-i18n="res.9">De încercat</summary>
       <ol>
-        <li>În scenariul „Inversiune nemărginită”, comparați cele patru protocoale. Cât așteaptă H în fiecare
+        <li data-i18n="res.10">În scenariul „Inversiune nemărginită”, comparați cele patru protocoale. Cât așteaptă H în fiecare
           caz? Urmăriți rândul zăvorului S și banda colorată de deasupra lui L.</li>
-        <li>Cu moștenire, urmăriți M între 3 și 5 ms: este gata, dar nu rulează, deși nu folosește zăvorul
+        <li data-i18n="res.11">Cu moștenire, urmăriți M între 3 și 5 ms: este gata, dar nu rulează, deși nu folosește zăvorul
           (blocare prin împingere).</li>
-        <li>În scenariul „Deadlock”, mutați eliberarea lui τ1 de la 1 la 3: τ2 apucă să ia ambele zăvoare
+        <li data-i18n="res.12">În scenariul „Deadlock”, mutați eliberarea lui τ1 de la 1 la 3: τ2 apucă să ia ambele zăvoare
           înainte, iar deadlockul nu mai apare. Defectul rămâne în cod, dar se vede doar la anumite decalaje.</li>
-        <li>În scenariul „Inversiune nemărginită”, scurtați secțiunea critică a lui L la <code>[S 2]</code>:
+        <li data-i18n="res.13">În scenariul „Inversiune nemărginită”, scurtați secțiunea critică a lui L la <code>[S 2]</code>:
           blocarea lui H scade la 1 ms sub orice protocol. Lungimea secțiunilor critice o decideți voi.</li>
       </ol>
     </details>
     <div class="figure">
-      <div class="fig-title">Diagrama de timp: faceți clic pe diagramă pentru a muta cursorul
+      <div class="fig-title"><span data-i18n="res.14">Diagrama de timp: faceți clic pe diagramă pentru a muta cursorul</span>
         <span class="player">
-          <button id="r-back" type="button" title="Un pas înapoi">◀</button>
-          <button id="r-play" type="button">Pornește</button>
-          <button id="r-fwd" type="button" title="Un pas înainte">▶</button>
+          <button id="r-back" type="button" title="Un pas înapoi" data-i18n-title="a.18">◀</button>
+          <button id="r-play" type="button" data-i18n="res.15">Pornește</button>
+          <button id="r-fwd" type="button" title="Un pas înainte" data-i18n-title="a.19">▶</button>
         </span>
       </div>
-      <div class="svgwrap"><svg id="r-gantt" role="img" aria-label="Diagrama de timp cu zăvoare"></svg></div>
+      <div class="svgwrap"><svg id="r-gantt" role="img" aria-label="Diagrama de timp cu zăvoare" data-i18n-aria="a.20"></svg></div>
       <div class="key" data-key="exec|cs|boost|ready|lockwait|rel|lock|idle|cursor"></div>
     </div>
     <div class="split">
@@ -431,21 +432,21 @@
         <div class="table-wrap"><table id="r-state"></table></div>
       </div>
       <div class="figure">
-        <div class="fig-title">Rezultatul simulării</div>
+        <div class="fig-title" data-i18n="res.16">Rezultatul simulării</div>
         <div class="cards" id="r-cards"></div>
       </div>
     </div>
     <div class="figure">
-      <div class="fig-title">Taskurile și programele lor</div>
+      <div class="fig-title" data-i18n="res.17">Taskurile și programele lor</div>
       <div class="table-wrap"><table id="r-tasks" class="edit"></table></div>
-      <p class="note">Program: un număr înseamnă calcul în afara zăvoarelor, <code>[S 2]</code> înseamnă 2 ms în
+      <p class="note" data-i18n="res.18">Program: un număr înseamnă calcul în afara zăvoarelor, <code>[S 2]</code> înseamnă 2 ms în
         secțiunea critică pe zăvorul S, iar secțiunile se pot imbrica: <code>[A 2 [B 1]]</code> ia A, apoi B
         cât ține A. Prioritate: număr mai mare înseamnă prioritate mai mare. Fiecare task are un singur job,
         eliberat la momentul r.</p>
-      <div class="row"><button id="r-add" type="button">Adaugă task</button></div>
+      <div class="row"><button id="r-add" type="button" data-i18n="res.19">Adaugă task</button></div>
     </div>
     <div class="figure">
-      <div class="fig-title">Ce garantează teoria: timpul de blocare $B_i$ (6.3, secțiunea 6)</div>
+      <div class="fig-title" data-i18n="res.20">Ce garantează teoria: timpul de blocare $B_i$ (6.3, secțiunea 6)</div>
       <div id="r-bounds"></div>
     </div>
   </section>
@@ -453,36 +454,37 @@
   <!-- Legendă ----------------------------------------------------------->
   <section id="tab-help" class="tab" role="tabpanel" hidden>
     <div class="figure">
-      <div class="fig-title">Cum se citește diagrama</div>
-      <div class="svgwrap"><svg id="h-gantt" role="img" aria-label="Exemplu adnotat"></svg></div>
+      <div class="fig-title" data-i18n="help.1">Cum se citește diagrama</div>
+      <div class="svgwrap"><svg id="h-gantt" role="img" aria-label="Exemplu adnotat" data-i18n-aria="a.21"></svg></div>
     </div>
     <dl class="defs">
-      <dt>Bloc plin, „J0”, „J1”, …</dt><dd>jobul rulează pe procesor; eticheta este indicele jobului $k$.</dd>
-      <dt>Bandă hașurată</dt><dd>jobul a fost eliberat, dar așteaptă în Ready: procesorul este ocupat de alt job.</dd>
-      <dt>Săgeată în sus</dt><dd>eliberare (release) $r_k$: jobul $k$ devine gata de execuție.</dd>
-      <dt>Săgeată în jos, colorată</dt><dd>termenul-limită absolut (absolute deadline) $d_k = r_k + D$.</dd>
-      <dt>Săgeată în jos roșie, „✕ ratat”</dt><dd>jobul nu a terminat până la $d_k$ (deadline miss).</dd>
-      <dt>Cerc pe rândul „evenimente”</dt><dd>un eveniment (de exemplu, o apăsare de buton); galben cu linie punctată: eliberare amânată; ✕ roșu: eveniment ignorat.</dd>
-      <dt>Linii verticale punctate</dt><dd>grila ideală a unui task periodic, $r_k = kT$ (fila 3, „Periodic”).</dd>
-      <dt>Bandă închisă la culoare deasupra blocului, cu eticheta S</dt><dd>jobul rulează în secțiunea critică pe zăvorul S (fila 5).</dd>
-      <dt>Bandă colorată îngustă deasupra blocului</dt><dd>jobul rulează cu o prioritate mai mare decât a lui, moștenită sau primită de la plafonul zăvorului; culoarea este a taskului de la care vine prioritatea (fila 5).</dd>
-      <dt>Bandă cu x roșii</dt><dd>jobul este blocat: așteaptă un zăvor ținut de alt task, sau, la PCP, este oprit de plafonul unui zăvor (fila 5).</dd>
-      <dt>Rândul „zăvorul S”</dt><dd>cine ține zăvorul la fiecare moment, în culoarea proprietarului; plafonul este prioritatea celui mai prioritar task care îl folosește.</dd>
-      <dt>Rândul „Procesor”</dt><dd>cine ocupă procesorul la fiecare moment; linia subțire gri înseamnă procesor liber.</dd>
-      <dt>$T$, $T_{min}$, $\bar T$</dt><dd>perioada (periodic), intervalul minim între sosiri (sporadic), intervalul mediu (aperiodic).</dd>
-      <dt>Laxitate (laxity) $X(t)$</dt><dd>cât mai poate aștepta jobul fără să-și rateze termenul: $(d_k - t) - c(t)$.</dd>
+      <dt data-i18n="help.2">Bloc plin, „J0”, „J1”, …</dt><dd data-i18n="help.3">jobul rulează pe procesor; eticheta este indicele jobului $k$.</dd>
+      <dt data-i18n="help.4">Bandă hașurată</dt><dd data-i18n="help.5">jobul a fost eliberat, dar așteaptă în Ready: procesorul este ocupat de alt job.</dd>
+      <dt data-i18n="help.6">Săgeată în sus</dt><dd data-i18n="help.7">eliberare (release) $r_k$: jobul $k$ devine gata de execuție.</dd>
+      <dt data-i18n="help.8">Săgeată în jos, colorată</dt><dd data-i18n="help.9">termenul-limită absolut (absolute deadline) $d_k = r_k + D$.</dd>
+      <dt data-i18n="help.10">Săgeată în jos roșie, „✕ ratat”</dt><dd data-i18n="help.11">jobul nu a terminat până la $d_k$ (deadline miss).</dd>
+      <dt data-i18n="help.12">Cerc pe rândul „evenimente”</dt><dd data-i18n="help.13">un eveniment (de exemplu, o apăsare de buton); galben cu linie punctată: eliberare amânată; ✕ roșu: eveniment ignorat.</dd>
+      <dt data-i18n="help.14">Linii verticale punctate</dt><dd data-i18n="help.15">grila ideală a unui task periodic, $r_k = kT$ (fila 3, „Periodic”).</dd>
+      <dt data-i18n="help.16">Bandă închisă la culoare deasupra blocului, cu eticheta S</dt><dd data-i18n="help.17">jobul rulează în secțiunea critică pe zăvorul S (fila 5).</dd>
+      <dt data-i18n="help.18">Bandă colorată îngustă deasupra blocului</dt><dd data-i18n="help.19">jobul rulează cu o prioritate mai mare decât a lui, moștenită sau primită de la plafonul zăvorului; culoarea este a taskului de la care vine prioritatea (fila 5).</dd>
+      <dt data-i18n="help.20">Bandă cu x roșii</dt><dd data-i18n="help.21">jobul este blocat: așteaptă un zăvor ținut de alt task, sau, la PCP, este oprit de plafonul unui zăvor (fila 5).</dd>
+      <dt data-i18n="help.22">Rândul „zăvorul S”</dt><dd data-i18n="help.23">cine ține zăvorul la fiecare moment, în culoarea proprietarului; plafonul este prioritatea celui mai prioritar task care îl folosește.</dd>
+      <dt data-i18n="help.24">Rândul „Procesor”</dt><dd data-i18n="help.25">cine ocupă procesorul la fiecare moment; linia subțire gri înseamnă procesor liber.</dd>
+      <dt data-i18n="help.26">$T$, $T_{min}$, $\bar T$</dt><dd data-i18n="help.27">perioada (periodic), intervalul minim între sosiri (sporadic), intervalul mediu (aperiodic).</dd>
+      <dt data-i18n="help.28">Laxitate (laxity) $X(t)$</dt><dd data-i18n="help.29">cât mai poate aștepta jobul fără să-și rateze termenul: $(d_k - t) - c(t)$.</dd>
     </dl>
-    <p class="note">Notația este cea din cursul <i>Sisteme de Timp Real</i> (Anexa „Notație”).
+    <p class="note" data-i18n="help.30">Notația este cea din cursul <i>Sisteme de Timp Real</i> (Anexa „Notație”).
       Timpul este discret: o unitate de timp se numește aici, convențional, ms. La aceeași cheie de prioritate,
       câștigă taskul aflat mai sus în tabel.</p>
   </section>
 </main>
 
-<footer class="foot">
+<footer class="foot" data-i18n="help.31">
   Material didactic pentru cursul Sisteme de Timp Real, Universitatea Tehnică din Cluj-Napoca.
   Simulare discretă pe un singur nucleu, fără costul comutării de context.
 </footer>
 
+<script src="js/i18n.js"></script>
 <script src="js/sim.js"></script>
 <script src="js/render.js"></script>
 <script src="js/presets.js"></script>

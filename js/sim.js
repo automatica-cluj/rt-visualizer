@@ -57,14 +57,7 @@
     return out;
   }
 
-  const POLICIES = {
-    RM: 'Rate Monotonic (RM)',
-    DM: 'Deadline Monotonic (DM)',
-    FP: 'Priorități fixe alese manual',
-    EDF: 'Earliest Deadline First (EDF)',
-    LLF: 'Least Laxity First (LLF)',
-    FIFO: 'Primul venit, primul servit (FIFO)'
-  };
+  const POLICIES = ['RM', 'DM', 'FP', 'EDF', 'LLF', 'FIFO'];
 
   /** Prioritatea statică a unui task: număr mai mare = prioritate mai mare. */
   function staticRank(policy, task, i, tasks) {
@@ -418,18 +411,15 @@
 
   /* ---------------- resurse partajate și inversiunea de prioritate (6.3) ---------------- */
 
-  const PROTOCOLS = {
-    none: 'Fără protocol (zăvor simplu)',
-    pip: 'Moștenirea priorității (PIP)',
-    icpp: 'Plafonul imediat (ICPP)',
-    pcp: 'Protocolul plafonului (PCP)'
-  };
+  const PROTOCOLS = ['none', 'pip', 'icpp', 'pcp'];
 
   /**
    * Programul unui task, scris ca în exemplele din 6.3:
    *   „1 [S 2] 1”  = 1 ms de calcul, 2 ms în secțiunea critică pe zăvorul S, 1 ms de calcul;
    *   „[A 2 [B 1]]” = secțiuni critice imbricate (B este luat cât timp A este ținut).
-   * Întoarce { ops } sau { error }. Operațiile: {op:'calc',n}, {op:'lock',S}, {op:'unlock',S}.
+   * Întoarce { ops } sau { error, arg }, cu error unul dintre codurile: 'close' (o „]” fără pereche),
+   * 'token' (arg: textul necunoscut), 'open' (arg: zăvorul neînchis), 'empty' (niciun calcul).
+   * Operațiile: {op:'calc',n}, {op:'lock',S}, {op:'unlock',S}.
    */
   function parseProgram(text) {
     const ops = [], open = [];
@@ -439,13 +429,13 @@
       const tok = m[0];
       if (m[1]) { ops.push({ op: 'lock', S: m[1] }); open.push(m[1]); }
       else if (tok === ']') {
-        if (!open.length) return { error: 'o paranteză „]” nu are pereche' };
+        if (!open.length) return { error: 'close' };
         ops.push({ op: 'unlock', S: open.pop() });
       } else if (/^\d+$/.test(tok)) { if (+tok > 0) ops.push({ op: 'calc', n: +tok }); }
-      else return { error: `nu înțeleg „${tok}”; folosiți numere și [S n]` };
+      else return { error: 'token', arg: tok };
     }
-    if (open.length) return { error: `secțiunea critică pe ${open[open.length - 1]} nu este închisă cu „]”` };
-    if (!ops.some(o => o.op === 'calc')) return { error: 'programul nu are niciun calcul' };
+    if (open.length) return { error: 'open', arg: open[open.length - 1] };
+    if (!ops.some(o => o.op === 'calc')) return { error: 'empty' };
     return { ops };
   }
 

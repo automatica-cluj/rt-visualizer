@@ -6,6 +6,7 @@
 (function (root) {
   'use strict';
   const NS = 'http://www.w3.org/2000/svg';
+  const L = (ro, en) => (root.RTI18N ? root.RTI18N.L(ro, en) : ro);
   const LEFT = 128, RIGHT = 18;
 
   function el(name, attrs, parent) {
@@ -173,7 +174,7 @@
             style: miss ? '' : `stroke:${color(ti)}` }, marks);
           if (miss) {
             const atEnd = x(j.d) + 50 > W - RIGHT;
-            text(labels, x(j.d) + (atEnd ? -5 : 5), base - 30, '✕ ratat',
+            text(labels, x(j.d) + (atEnd ? -5 : 5), base - 30, `✕ ${L('ratat', 'missed')}`,
               { class: 'miss-label', 'text-anchor': atEnd ? 'end' : 'start' });
           }
         }
@@ -189,9 +190,9 @@
 
     if (opts.cpuRow) {
       const y0 = rowY(tasks.length), base = y0 + rowH - 10;
-      text(marks, 10, base - 15, 'Procesor', { class: 'row-label' });
+      text(marks, 10, base - 15, L('Procesor', 'Processor'), { class: 'row-label' });
       const idle = result.horizon - result.busy;
-      text(marks, 10, base - 1, `ocupat ${Math.round(100 * result.busy / result.horizon)} %`, { class: 'row-sub' });
+      text(marks, 10, base - 1, `${L('ocupat', 'busy')} ${Math.round(100 * result.busy / result.horizon)} %`, { class: 'row-sub' });
       el('line', { x1: LEFT, x2: W - RIGHT, y1: base, y2: base, class: 'baseline' }, marks);
       let s = 0;
       for (let t = 1; t <= result.horizon; t++) {
@@ -469,39 +470,40 @@
             if (w > 40) text(labels, x0 + 3, base - 31, `P = ${st.prio}`, { class: 'boost-label' });
           }
           hit(rn.t0, rn.t1, y0 + 2, rowH - 4,
-            `<b>${esc(nm(i))}</b> rulează, ${rn.t0}–${rn.t1}` +
-            (cs ? `<br>în secțiunea critică pe ${st.held.join(', ')}` : '') +
-            (boosted ? `<br>cu prioritatea ${st.prio}, ${res.protocol === 'icpp' ? 'plafonul zăvorului luat' : 'moștenită de la ' + esc(nm(st.donor))} (a lui: ${task.prio})` : ''));
+            `<b>${esc(nm(i))}</b> ${L('rulează', 'runs')}, ${rn.t0}–${rn.t1}` +
+            (cs ? `<br>${L('în secțiunea critică pe', 'in the critical section on')} ${st.held.join(', ')}` : '') +
+            (boosted ? `<br>${L('cu prioritatea', 'with priority')} ${st.prio}, ${res.protocol === 'icpp' ? L('plafonul zăvorului luat', 'the ceiling of the lock taken') : L('moștenită de la ', 'inherited from ') + esc(nm(st.donor))} (${L('a lui', 'its own')}: ${task.prio})` : ''));
         } else if (st.s === 'ready') {
           el('rect', { x: x0, y: base - 16, width: w, height: 14, style: `fill:url(#hatch-${i})` }, marks);
-          hit(rn.t0, rn.t1, y0 + 2, rowH - 4, `<b>${esc(nm(i))}</b> este gata (Ready), ${rn.t0}–${rn.t1}, dar rulează un task cu prioritate activă cel puțin egală` +
-            (boosted ? `<br>prioritatea lui este acum ${st.prio}` : ''));
+          hit(rn.t0, rn.t1, y0 + 2, rowH - 4, `<b>${esc(nm(i))}</b> ${L('este gata (Ready)', 'is ready (Ready)')}, ${rn.t0}–${rn.t1}, ${L('dar rulează un task cu prioritate activă cel puțin egală', 'but a task with at least the same active priority runs')}` +
+            (boosted ? `<br>${L('prioritatea lui este acum', 'its priority is now')} ${st.prio}` : ''));
         } else if (st.s === 'blocked') {
           el('rect', { x: x0, y: base - 16, width: w, height: 14, style: 'fill:url(#blk)', class: 'blk-box' }, marks);
-          if (w > 58) text(labels, x0 + 4, base - 5, st.ceiling ? `plafon (${st.S} e liber)` : `așteaptă ${st.S}`, { class: 'blk-label' });
-          hit(rn.t0, rn.t1, y0 + 2, rowH - 4, `<b>${esc(nm(i))}</b> este blocat (Blocked), ${rn.t0}–${rn.t1}<br>` +
-            (st.ceiling ? `cere zăvorul ${st.S}, care este liber, dar plafonul unui zăvor ținut de ${esc(nm(st.by))} nu este mai mic decât prioritatea lui: blocare de plafon`
-              : `așteaptă zăvorul ${st.S}, ținut de ${esc(nm(st.by))}`));
+          if (w > 58) text(labels, x0 + 4, base - 5, st.ceiling ? L(`plafon (${st.S} e liber)`, `ceiling (${st.S} is free)`) : L(`așteaptă ${st.S}`, `waits for ${st.S}`), { class: 'blk-label' });
+          hit(rn.t0, rn.t1, y0 + 2, rowH - 4, `<b>${esc(nm(i))}</b> ${L('este blocat (Blocked)', 'is blocked (Blocked)')}, ${rn.t0}–${rn.t1}<br>` +
+            (st.ceiling ? L(`cere zăvorul ${st.S}, care este liber, dar plafonul unui zăvor ținut de ${esc(nm(st.by))} nu este mai mic decât prioritatea lui: blocare de plafon`,
+              `requests lock ${st.S}, which is free, but the ceiling of a lock held by ${esc(nm(st.by))} is not lower than its priority: ceiling blocking`)
+              : L(`așteaptă zăvorul ${st.S}, ținut de ${esc(nm(st.by))}`, `waits for lock ${st.S}, held by ${esc(nm(st.by))}`)));
         }
       });
     });
 
     res.lockNames.forEach((S, k) => {
       const y0 = top + tasks.length * rowH + k * lockH, base = y0 + lockH - 8;
-      text(marks, 10, base - 12, `zăvorul ${S}`, { class: 'row-label' });
-      text(marks, 10, base + 1, `plafon ${res.ceil[S]}`, { class: 'row-sub' });
+      text(marks, 10, base - 12, `${L('zăvorul', 'lock')} ${S}`, { class: 'row-label' });
+      text(marks, 10, base + 1, `${L('plafon', 'ceiling')} ${res.ceil[S]}`, { class: 'row-sub' });
       el('line', { x1: LEFT, x2: W - RIGHT, y1: base, y2: base, class: 'baseline' }, marks);
       runs(res.holders[S], v => String(v)).forEach(rn => {
         if (rn.v === null) return;
         const w = (rn.t1 - rn.t0) * scale;
         el('rect', { x: x(rn.t0) + 0.5, y: base - 14, width: Math.max(w - 1, 1), height: 14, rx: 3, style: `fill:${color(rn.v)}`, class: 'lock-held' }, marks);
         if (w > 30) text(marks, x(rn.t0) + w / 2, base - 3, nm(rn.v), { class: 'exec-label', 'text-anchor': 'middle' });
-        hit(rn.t0, rn.t1, y0, lockH, `zăvorul <b>${S}</b> este ținut de <b>${esc(nm(rn.v))}</b>, ${rn.t0}–${rn.t1}`);
+        hit(rn.t0, rn.t1, y0, lockH, L(`zăvorul <b>${S}</b> este ținut de <b>${esc(nm(rn.v))}</b>, ${rn.t0}–${rn.t1}`, `lock <b>${S}</b> is held by <b>${esc(nm(rn.v))}</b>, ${rn.t0}–${rn.t1}`));
       });
     });
 
     const yc = top + tasks.length * rowH + nL * lockH, bc = yc + rowH - 10;
-    text(marks, 10, bc - 15, 'Procesor', { class: 'row-label' });
+    text(marks, 10, bc - 15, L('Procesor', 'Processor'), { class: 'row-label' });
     el('line', { x1: LEFT, x2: W - RIGHT, y1: bc, y2: bc, class: 'baseline' }, marks);
     const runner = [];
     for (let t = 0; t < H; t++) runner.push(tasks.findIndex((_, i) => res.timeline[i][t].s === 'run'));
@@ -513,7 +515,7 @@
     if (res.deadlock) {
       const t0 = res.deadlock.t;
       el('rect', { x: x(t0), y: top, width: x(H) - x(t0), height: plotBottom - top, class: 'deadlock-zone' }, marks);
-      text(labels, x(t0) + 6, bc - 6, `deadlock: ${res.deadlock.tasks.map(nm).join(' și ')} se așteaptă reciproc`, { class: 'miss-label' });
+      text(labels, x(t0) + 6, bc - 6, L(`deadlock: ${res.deadlock.tasks.map(nm).join(' și ')} se așteaptă reciproc`, `deadlock: ${res.deadlock.tasks.map(nm).join(' and ')} wait for each other`), { class: 'miss-label' });
     }
     if (opts.cursor !== undefined && opts.cursor !== null) {
       const cx = x(opts.cursor);
