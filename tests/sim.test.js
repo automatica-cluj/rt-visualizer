@@ -229,3 +229,25 @@ test('marginile blocării B_i (6.3, secțiunea 6)', () => {
     r.stats.forEach((st, i) => assert.ok(st.inversion <= b[i][p === 'pip' ? 'pip' : 'ceiling']));
   }
 });
+
+test('cu decalaje (prima eliberare ≠ 0), R simulat nu depășește niciodată R din RTA', () => {
+  const rand = S.rng(2024);
+  let compared = 0;
+  for (let it = 0; it < 400; it++) {
+    const n = 2 + Math.floor(rand() * 2);
+    const set = [];
+    for (let i = 0; i < n; i++) {
+      const T = [4, 5, 6, 8, 10, 12, 15, 20][Math.floor(rand() * 8)];
+      set.push(P('t' + i, 1 + Math.floor(rand() * Math.max(1, T / 3)), T, T, { offset: Math.floor(rand() * T) }));
+    }
+    const rta = S.analyse(set, 'RM').rta;
+    if (!rta.every(x => x.ok)) continue;
+    const H = Math.min(600, S.hyperperiod(set) * 2 + 20);
+    const sim = S.simulate(set, { policy: 'RM', horizon: H });
+    rta.forEach(x => {
+      const maxR = sim.stats[x.task].maxR;
+      if (maxR !== null) { assert.ok(maxR <= x.R, `${JSON.stringify(set)}: ${maxR} > ${x.R}`); compared++; }
+    });
+  }
+  assert.ok(compared > 300);
+});

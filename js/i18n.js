@@ -170,6 +170,8 @@
     'help.3': 'the job runs on the processor; the label is the job index $k$.',
     'help.4': 'Hatched band',
     'help.5': 'the job has been released but waits in Ready: the processor is busy with another job.',
+    'help.32': 'Thin hatched band below the row line',
+    'help.33': 'the job has been released but waits for the previous job of the same task to finish (when $C &gt; T$ or under overload).',
     'help.6': 'Up arrow',
     'help.7': 'release $r_k$: job $k$ becomes ready to run.',
     'help.8': 'Colored down arrow',

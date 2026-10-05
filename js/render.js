@@ -101,6 +101,8 @@
     }
 
     const hits = el('g', { class: 'hits' }, svg);
+    // așteptarea în Ready stă sub blocurile de execuție, ca să nu le acopere
+    const waits = el('g', { 'pointer-events': 'none' }, svg);
     // desenele nu prind mouse-ul, ca evenimentele să ajungă la dreptunghiurile .hit
     const marks = el('g', { 'pointer-events': 'none' }, svg);
     // etichetele stau deasupra tuturor desenelor, ca să nu fie acoperite de săgeți
@@ -140,7 +142,12 @@
       text(marks, 26, base - 1, opts.rowSubs ? opts.rowSubs[ti] : paramLabel(task), { class: 'row-sub' });
       el('line', { x1: LEFT, x2: W - RIGHT, y1: base, y2: base, class: 'baseline' }, marks);
 
-      result.jobs.filter(j => j.task === ti).forEach(j => {
+      const own = result.jobs.filter(j => j.task === ti);
+      // momentele în care rulează un job al acestui task: un alt job al lui care așteaptă atunci
+      // (C > T sau supraîncărcare) ar fi ascuns sub bloc, deci îl arătăm sub linia rândului
+      const busy = new Set();
+      own.forEach(j => j.segments.forEach(([s, e]) => { for (let t = s; t < e; t++) busy.add(t); }));
+      own.forEach(j => {
         const end = j.finish !== null ? j.finish : (j.aborted ? Math.min(j.d, to) : to);
         // timpul petrecut în Ready: de la eliberare la terminare, în afara execuției
         if (opts.showReady !== false && end > j.r) {
@@ -151,7 +158,14 @@
           gaps.forEach(([s, e]) => {
             if (e <= from || s >= to) return;
             el('rect', { x: x(Math.max(s, from)), y: base - 16, width: (Math.min(e, to) - Math.max(s, from)) * scale,
-              height: 14, style: `fill:url(#hatch-${ti})` }, marks);
+              height: 14, style: `fill:url(#hatch-${ti})` }, waits);
+            for (let t = Math.max(s, from); t < Math.min(e, to); t++) {
+              if (!busy.has(t)) continue;
+              let u = t; while (u + 1 < Math.min(e, to) && busy.has(u + 1)) u++;
+              el('rect', { x: x(t), y: base + 2, width: (u + 1 - t) * scale, height: 5,
+                style: `fill:url(#hatch-${ti});stroke:${color(ti)}`, class: 'backlog' }, waits);
+              t = u;
+            }
           });
         }
         j.segments.forEach(([s, e]) => {
@@ -159,8 +173,9 @@
           const w = (Math.min(e, to) - Math.max(s, from)) * scale;
           el('rect', { x: x(Math.max(s, from)) + 0.5, y: base - 20, width: Math.max(w - 1, 1), height: 20,
             rx: 3, style: `fill:${color(ti)}`, class: j.missed ? 'exec exec-late' : 'exec' }, marks);
-          if (w > 22 && opts.jobLabels !== false) {
-            text(marks, x(Math.max(s, from)) + w / 2, base - 6, `J${j.k}`, { class: 'exec-label', 'text-anchor': 'middle' });
+          // eticheta la începutul blocului: la mijloc ar putea fi acoperită de un termen-limită
+          if (w > 26 && opts.jobLabels !== false) {
+            text(marks, x(Math.max(s, from)) + 7, base - 6, `J${j.k}`, { class: 'exec-label' });
           }
         });
         if (j.r >= from && j.r <= to) {

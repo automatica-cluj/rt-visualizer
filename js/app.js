@@ -64,7 +64,8 @@
     boost: [L('rulează cu prioritate ridicată (culoarea taskului de la care vine)', 'runs with a raised priority (color of the task it comes from)'), '<rect x="1" y="7" width="20" height="8" rx="2" style="fill:var(--s3)"/><rect x="1" y="1" width="20" height="4" rx="1" style="fill:var(--s1)"/>'],
     lockwait: [L('blocat: așteaptă un zăvor', 'blocked: waits for a lock'), '<pattern id="P" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="5" height="5" class="blk-bg"/><path d="M0,0 L5,5 M5,0 L0,5" class="blk-x"/></pattern><rect x="1" y="4" width="20" height="8" class="blk-box" style="fill:url(#P)"/>'],
     lock: [L('zăvor ținut (culoarea proprietarului)', 'lock held (color of the owner)'), '<rect x="1" y="5" width="20" height="7" rx="2" class="lock-held" style="fill:var(--s3)"/>'],
-    cursor: ['cursor', '<line x1="11" y1="0" x2="11" y2="16" class="cursor"/>']
+    cursor: ['cursor', '<line x1="11" y1="0" x2="11" y2="16" class="cursor"/>'],
+    backlog: [L('așteaptă jobul precedent al aceluiași task', 'waits for the previous job of the same task'), '<pattern id="P" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" style="fill:var(--s1);opacity:.1"/><line x1="0" y1="0" x2="0" y2="5" style="stroke:var(--s1);stroke-width:2;opacity:.55"/></pattern><rect x="1" y="9" width="20" height="5" class="backlog" style="fill:url(#P);stroke:var(--s1)"/>']
   });
   // variante ale simbolurilor de mai sus, cu alt text
   const KEY_ALIAS = () => ({
@@ -573,10 +574,13 @@
           <td class="num">${x.R === null ? '—' : x.R}</td><td class="num">${t.D}</td>
           <td>${x.aperiodicAbove ? verdict('maybe', L('fără garanție', 'no guarantee')) : (x.ok ? verdict('ok', 'R ≤ D') : verdict('bad', 'R > D'))}</td></tr>`;
       });
-      out.push(`<p>${L('Analiza timpului de răspuns (RTA), test exact pentru priorități fixe', 'Response time analysis (RTA), an exact test for fixed priorities')}:
+      out.push(`<p>${L('Analiza timpului de răspuns (RTA), test exact pentru priorități fixe, calculat pentru instantul critic (toate taskurile eliberate în același moment)', 'Response time analysis (RTA), an exact test for fixed priorities, computed for the critical instant (all tasks released at the same moment)')}:
         R = C<sub>i</sub> + Σ<sub>j∈hp(i)</sub> ⌈R / T<sub>j</sub>⌉ C<sub>j</sub>, ${L('iterat până nu se mai schimbă', 'iterated until it no longer changes')}.</p>
         <div class="table-wrap"><table><thead><tr><th>${L('Task, în ordinea priorității', 'Task, in priority order')}</th><th>hp(i)</th><th>${L('Iterații', 'Iterations')}</th><th>R</th><th>D</th><th></th></tr></thead>
         <tbody>${rows.join('')}</tbody></table></div>`);
+      if (sched.tasks.some(t => t.type !== 'aperiodic' && t.offset > 0)) {
+        out.push(`<p class="note">${L('Unele taskuri au prima eliberare diferită de 0. RTA nu ține cont de decalaje: calculează cazul cel mai defavorabil, cu eliberări simultane. Dacă decalajele sunt fixe, acest caz poate să nu apară niciodată, iar simularea arată timpi de răspuns mai mici; R din tabel rămâne o margine sigură. Dacă eliberările pot aluneca (sporadic, jitter), cazul cel mai defavorabil poate apărea oricând.', 'Some tasks have a first release other than 0. RTA ignores offsets: it computes the worst case, with simultaneous releases. If the offsets are fixed, that case may never happen and the simulation shows shorter response times; R in the table remains a safe bound. If the releases can drift (sporadic tasks, jitter), the worst case can happen at any time.')}</p>`);
+      }
       if (!$('s-preempt').checked) out.push(`<p class="note">${L('RTA de mai sus presupune preempțiune; la planificare nepreemptivă trebuie adăugat timpul de blocare B<sub>i</sub>.', 'The RTA above assumes preemption; for non-preemptive scheduling the blocking time B<sub>i</sub> must be added.')}</p>`);
     } else if (policy === 'EDF' || policy === 'LLF') {
       if (an.implicit) {

@@ -64,7 +64,7 @@
     <div class="figure">
       <div class="fig-title" data-i18n="model.17">Diagrama de timp</div>
       <div class="svgwrap"><svg id="m-gantt" role="img" aria-label="Diagrama de timp a taskului" data-i18n-aria="a.2"></svg></div>
-      <div class="key" data-key="exec|ready|rel|dl|miss|dim|idle"></div>
+      <div class="key" data-key="exec|ready|backlog|rel|dl|miss|dim|idle"></div>
     </div>
     <div class="cards" id="m-cards"></div>
     <div class="figure">
@@ -342,7 +342,7 @@
         </span>
       </div>
       <div class="svgwrap"><svg id="s-gantt" role="img" aria-label="Diagrama de planificare" data-i18n-aria="a.15"></svg></div>
-      <div class="key" data-key="exec|ready|rel|dl|miss|idle|cursor"></div>
+      <div class="key" data-key="exec|ready|backlog|rel|dl|miss|idle|cursor"></div>
     </div>
 
     <div class="split">
@@ -460,6 +460,7 @@
     <dl class="defs">
       <dt data-i18n="help.2">Bloc plin, „J0”, „J1”, …</dt><dd data-i18n="help.3">jobul rulează pe procesor; eticheta este indicele jobului $k$.</dd>
       <dt data-i18n="help.4">Bandă hașurată</dt><dd data-i18n="help.5">jobul a fost eliberat, dar așteaptă în Ready: procesorul este ocupat de alt job.</dd>
+      <dt data-i18n="help.32">Bandă hașurată subțire, sub linia rândului</dt><dd data-i18n="help.33">jobul a fost eliberat, dar așteaptă ca jobul precedent al aceluiași task să termine (când $C &gt; T$ sau în supraîncărcare).</dd>
       <dt data-i18n="help.6">Săgeată în sus</dt><dd data-i18n="help.7">eliberare (release) $r_k$: jobul $k$ devine gata de execuție.</dd>
       <dt data-i18n="help.8">Săgeată în jos, colorată</dt><dd data-i18n="help.9">termenul-limită absolut (absolute deadline) $d_k = r_k + D$.</dd>
       <dt data-i18n="help.10">Săgeată în jos roșie, „✕ ratat”</dt><dd data-i18n="help.11">jobul nu a terminat până la $d_k$ (deadline miss).</dd>
