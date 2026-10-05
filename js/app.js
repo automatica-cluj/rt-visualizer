@@ -13,11 +13,11 @@
   function tex(s) {
     return '<span class="m">' + s
       .replace(/\\varepsilon/g, 'ε').replace(/\\le/g, '≤').replace(/\\sum/g, 'Σ').replace(/\\tau/g, 'τ')
-      .replace(/\\bar T/g, 'T̄').replace(/\\cdot/g, '·')
+      .replace(/\\bar T/g, 'T̄').replace(/\\cdot/g, '·').replace(/\{,\}/g, ',')
       .replace(/_\{([^}]*)\}/g, '<sub>$1</sub>').replace(/_(\w)/g, '<sub>$1</sub>')
       .replace(/\^\{([^}]*)\}/g, '<sup>$1</sup>') + '</span>';
   }
-  document.querySelectorAll('label, legend, p, .fig-title, dt, dd').forEach(n => {
+  document.querySelectorAll('label, legend, p, .fig-title, dt, dd, li').forEach(n => {
     if (n.innerHTML.includes('$') && !n.querySelector('input, select')) {
       n.innerHTML = n.innerHTML.replace(/\$([^$]+)\$/g, (m, g) => tex(g));
     } else if (n.tagName === 'LABEL') {
@@ -29,6 +29,29 @@
         }
       });
     }
+  });
+
+  /* ---------- cheia de sub fiecare diagramă ---------- */
+  const KEY = {
+    exec: ['jobul rulează', '<rect x="1" y="3" width="20" height="10" rx="2" style="fill:var(--s1)"/>'],
+    ready: ['eliberat, așteaptă în Ready', '<pattern id="P" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" style="fill:var(--s1);opacity:.1"/><line x1="0" y1="0" x2="0" y2="5" style="stroke:var(--s1);stroke-width:2;opacity:.55"/></pattern><rect x="1" y="4" width="20" height="8" style="fill:url(#P)"/>'],
+    rel: ['eliberare r', '<line x1="11" y1="15" x2="11" y2="4" class="rel"/><path d="M7,6 L11,0 L15,6 z" class="mk-rel"/>'],
+    dl: ['termen-limită d', '<line x1="11" y1="1" x2="11" y2="10" class="dl" style="stroke:var(--s1)"/><path d="M7,9 L11,15 L15,9 z" class="mk-dl"/>'],
+    miss: ['termen ratat', '<line x1="11" y1="1" x2="11" y2="10" class="dl dl-miss"/><path d="M7,9 L11,15 L15,9 z" class="mk-miss"/>'],
+    dim: ['cotă: T, D, C, R', '<line x1="2" y1="8" x2="20" y2="8" class="dimline"/><line x1="2" y1="4" x2="2" y2="12" class="dimtick"/><line x1="20" y1="4" x2="20" y2="12" class="dimtick"/>'],
+    idle: ['procesor liber', '<rect x="1" y="11" width="20" height="3" class="idle"/>'],
+    event: ['eveniment', '<line x1="11" y1="15" x2="11" y2="6" class="ev-stem"/><circle cx="11" cy="5" r="4" class="ev-dot"/>'],
+    deferred: ['eliberare amânată', '<line x1="4" y1="11" x2="20" y2="11" class="defer-line"/><circle cx="5" cy="5" r="4" class="ev-dot ev-def"/>'],
+    rejected: ['eveniment ignorat', '<text x="11" y="13" class="ev-x" text-anchor="middle">✕</text>'],
+    grid: ['grila ideală kT', '<line x1="11" y1="0" x2="11" y2="16" class="grid-ideal"/>'],
+    cursor: ['cursor', '<line x1="11" y1="0" x2="11" y2="16" class="cursor"/>']
+  };
+  document.querySelectorAll('.key').forEach((k, ki) => {
+    k.innerHTML = k.dataset.key.split('|').map(item => {
+      const [name, label] = item.split(':');
+      const [txt, svg] = KEY[name];
+      return `<span><svg width="22" height="16" viewBox="0 0 22 16" aria-hidden="true">${svg.replace(/id="P"/, `id="kp${ki}"`).replace('url(#P)', `url(#kp${ki})`)}</svg>${label || txt}</span>`;
+    }).join('');
   });
 
   /* ---------- tema ---------- */
@@ -70,7 +93,7 @@
         isFinite(j.d) ? `eliberare r = ${j.r}, termen d = ${j.d}` : `sosire r = ${j.r}, fără termen-limită`,
         `timp de calcul: ${j.exec}${j.exec !== t.C ? ` (C = ${t.C})` : ''}`,
         j.start !== null ? `început la ${j.start}, întârziere ${j.start - j.r}` : 'nu a început',
-        j.finish !== null ? `terminat la ${j.finish}, R = ${j.finish - j.r}` : (j.aborted ? 'abandonat la termen' : 'neterminat în orizont'),
+        j.finish !== null ? `terminat la ${j.finish}, R = ${j.finish - j.r}` : (j.aborted ? 'abandonat la termen' : 'neterminat până la sfârșitul simulării'),
         `preemptat de ${j.preempted} ori`
       ];
       if (j.missed) rows.push('<b class="bad">✕ termen ratat</b>');
@@ -91,9 +114,17 @@
   /* ===================== 1. Modelul de task ===================== */
   const m = {};
   ['C', 'T', 'D', 'r', 'hC', 'hT', 'hr'].forEach(k => { m[k] = bindRange('m-' + k, renderModel); });
+  // în curs D ≤ T; glisorul lui D nu trece de perioadă
+  function clampD() {
+    const d = $('m-D');
+    d.max = m.T();
+    if (+d.value > m.T()) d.value = m.T();
+    d.parentNode.querySelector('output').textContent = d.value;
+  }
   $('m-hp').addEventListener('change', renderModel);
 
   function renderModel() {
+    clampD();
     const C = m.C(), T = m.T(), D = m.D(), r0 = m.r();
     const tasks = [];
     if ($('m-hp').checked) {
@@ -101,7 +132,7 @@
     }
     tasks.push({ name: 'τ analizat', type: 'periodic', C, T, D, offset: r0, prio: 1 });
     const mi = tasks.length - 1;
-    const horizon = Math.min(90, Math.max(30, r0 + 3 * T + Math.max(D - T, 0)));
+    const horizon = Math.min(90, Math.max(30, r0 + 3 * T));
     const res = S.simulate(tasks, { policy: 'FP', horizon });
     R.gantt($('m-gantt'), res, { annotate: { task: mi, k: 0 }, cpuRow: true });
     jobTip(res, $('m-gantt'));
@@ -111,13 +142,13 @@
     const j0 = mine[0];
     const U = tasks.reduce((s, t) => s + t.C / t.T, 0);
     $('m-cards').innerHTML = [
-      card('Utilizarea taskului u = C/T', fmt2(C / T), `${C} din fiecare ${T} ms`),
-      card('Laxitatea nominală X = D − C', String(D - C), D - C < 0 ? verdict('bad', 'C > D: imposibil') : 'cât poate aștepta un job'),
-      card('Timpul de răspuns al jobului 0', j0 && j0.finish !== null ? `R₀ = ${j0.finish - j0.r}` : '—',
-        j0 && j0.finish !== null ? `${j0.exec} calcul + ${j0.finish - j0.r - j0.exec} așteptare` : ''),
-      card('Cel mai mare R observat', st.maxR !== null ? String(st.maxR) : '—', `D = ${D}`),
+      card('Utilizarea taskului u = C/T', fmt2(C / T), `${C} ms din fiecare ${T} ms`),
+      card('Laxitatea nominală X = D − C', `${D - C} ms`, D - C < 0 ? verdict('bad', 'C > D: imposibil') : 'cât poate aștepta un job'),
+      card('Timpul de răspuns al jobului 0', j0 && j0.finish !== null ? `R₀ = ${j0.finish - j0.r} ms` : '—',
+        j0 && j0.finish !== null ? `${j0.exec} ms calcul + ${j0.finish - j0.r - j0.exec} ms așteptare` : ''),
+      card('Cel mai mare R observat', st.maxR !== null ? `${st.maxR} ms` : '—', `termenul este D = ${D} ms`),
       card('Termene ratate', `${st.missed} din ${st.jobs}`, st.missed ? verdict('bad', 'R > D') : verdict('ok', 'toate la timp')),
-      card('U pentru tot procesorul', fmt2(U), U > 1 ? verdict('bad', 'supraîncărcare') : '')
+      card('U pentru tot procesorul', fmt2(U), U > 1 ? verdict('bad', 'supraîncărcare') : (tasks.length > 1 ? 'ambele taskuri' : 'un singur task'))
     ].join('');
 
     const series = mine.map(j => ({ name: `X(t), J${j.k}`, color: color(mi), points: S.laxitySeries(j, horizon) }));
@@ -126,7 +157,7 @@
     hi = Math.ceil(hi + 1); lo = Math.floor(lo);
     R.lineChart($('m-lax'), {
       series, xMax: horizon, yMin: lo, yMax: hi, height: 190,
-      yTicks: [lo, 0, hi], xLabel: 't (ms)', yLabel: 'X(t)',
+      yTicks: [lo, 0, hi], xLabel: 't (ms)', yLabel: 'X(t) (ms)',
       refLines: [{ y: 0, label: 'sub 0: termen ratat' }]
     });
   }
@@ -143,7 +174,7 @@
       { name: 'periodic', type: 'periodic' },
       { name: 'sporadic', type: 'sporadic' },
       { name: 'aperiodic', type: 'aperiodic' }
-    ].map(d => ({ ...d, C, T, D: T, offset: 0, prio: 1 }));
+    ].map(d => ({ ...d, C, T, D: Infinity, offset: 0, prio: 1 }));
     const merged = { tasks: defs, jobs: [], horizon: H, schedule: [], busy: 0 };
     const rel = [];
     defs.forEach((t, i) => {
@@ -151,7 +182,10 @@
       r.jobs.forEach(j => { merged.jobs.push({ ...j, task: i, id: merged.jobs.length }); });
       rel.push(r.jobs.map(j => j.r));
     });
-    R.gantt($('a-gantt'), merged, { cpuRow: false, jobLabels: C * 1 > 0 });
+    R.gantt($('a-gantt'), merged, {
+      cpuRow: false,
+      rowSubs: [`T = ${T}`, `Tmin = ${T}`, `T̄ = ${T}`]
+    });
     jobTip(merged, $('a-gantt'));
 
     const series = defs.map((t, i) => {
@@ -178,11 +212,11 @@
         <td class="num">${gaps.length ? Math.min(...gaps) : '—'}</td>
         <td class="num">${gaps.length ? Math.max(...gaps) : '—'}</td>
         <td class="num">${dense}${dense > 1 ? ' ' + verdict('bad', 'rafală') : ''}</td>
-        <td>${t.type === 'aperiodic' ? 'nu există margine' : fmt2(C / T)}</td></tr>`;
+        <td>${t.type === 'aperiodic' ? 'nu există margine' : fmt2(C / T) + (t.type === 'sporadic' ? ' (dacă vine cât de des are voie)' : '')}</td></tr>`;
     });
     $('a-table').innerHTML = `<thead><tr><th>Tip</th><th>Eliberări</th><th>Interval minim observat</th>
       <th>Interval maxim observat</th><th>Eliberări în cea mai densă fereastră de lungime T</th>
-      <th>Utilizare garantată C/T</th></tr></thead><tbody>${rows.join('')}</tbody>`;
+      <th>Utilizare maximă C/T</th></tr></thead><tbody>${rows.join('')}</tbody>`;
   }
 
   /* ===================== 4. Planificare și încărcare ===================== */
@@ -303,6 +337,7 @@
     const useH = $('s-useH');
     if (useH) useH.onclick = e => { e.preventDefault(); $('s-H').value = hp; runSched(); };
     $('s-preempt').disabled = policy === 'FIFO';
+    $('s-order').innerHTML = orderText(policy);
 
     const res = sched.result;
     const missed = res.stats.reduce((s, x) => s + x.missed, 0);
@@ -312,9 +347,66 @@
       card('Procesor ocupat în simulare', pct(res.busy / res.horizon), `${res.busy} din ${res.horizon} ms`),
       card('Termene ratate', `${missed} din ${total}`, missed ? verdict('bad', 'joburi întârziate') : verdict('ok', 'toate la timp')),
       card('Preempțiuni', String(res.preemptions), res.preemptive ? 'un job întrerupt de altul' : 'planificare nepreemptivă'),
-      card('Hiperperioada H', hp ? String(hp) : '—', hp && hp > H ? 'orizontul este mai scurt decât H' : '')
+      card('Hiperperioada H', hp ? `${hp} ms` : '—', hp && hp > H ? 'simularea este mai scurtă decât H' : 'tiparul eliberărilor se repetă')
     ].join('');
     drawGantt(); drawState(); drawLoad(); drawStats(); drawAnalysis(an);
+  }
+
+  /** Cum ordonează algoritmul taskurile, în cuvinte. */
+  function orderText(policy) {
+    const tasks = sched.tasks;
+    const byRank = (rank, label) => {
+      const idx = tasks.map((t, i) => i).sort((a, b) => rank(tasks[b]) - rank(tasks[a]) || a - b);
+      return `<b>Ordinea priorităților</b> (${label}): ` + idx.map(i =>
+        `<span class="sw" style="background:${color(i)}"></span>${esc(tasks[i].name)}`).join(' &gt; ') +
+        '. La egalitate, câștigă taskul aflat mai sus în tabel.';
+    };
+    switch (policy) {
+      case 'RM': return byRank(t => -t.T, 'RM: perioada mai mică înseamnă prioritate mai mare');
+      case 'DM': return byRank(t => -t.D, 'DM: termenul relativ mai mic înseamnă prioritate mai mare');
+      case 'FP': return byRank(t => t.prio, 'alese manual în coloana „Prioritate”: număr mai mare înseamnă prioritate mai mare');
+      case 'EDF': return '<b>EDF</b> nu are priorități fixe: la fiecare moment rulează jobul cu termenul absolut <i>d</i> cel mai apropiat.';
+      case 'LLF': return '<b>LLF</b> nu are priorități fixe: la fiecare moment rulează jobul cu laxitatea <i>X(t)</i> cea mai mică; la egalitate, jobul care rulează deja continuă.';
+      default: return '<b>FIFO</b>: joburile rulează în ordinea eliberării, fiecare până la capăt, fără să țină cont de termene.';
+    }
+  }
+
+  /** De ce rulează jobul ales la momentul t. */
+  function whyText(res, t) {
+    const st = S.stateAt(res, t);
+    const cand = st.map((s, i) => ({ ...s, i })).filter(s => s.state !== 'waiting');
+    if (!cand.length) return `La t = ${t} niciun job nu este gata, deci procesorul este liber.`;
+    const run = cand.find(s => s.state === 'running');
+    const nm = s => `<b>${esc(res.tasks[s.i].name)}</b>`;
+    const policy = res.policy;
+    const key = s => {
+      const task = res.tasks[s.i];
+      return { RM: task.T, DM: task.D, FP: -task.prio, EDF: s.job.d, LLF: s.laxity, FIFO: s.job.r }[policy];
+    };
+    const what = s => {
+      const task = res.tasks[s.i];
+      return {
+        RM: `are perioada cea mai mică dintre taskurile gata (T = ${task.T})`,
+        DM: `are termenul relativ cel mai mic dintre taskurile gata (D = ${task.D})`,
+        FP: `are prioritatea cea mai mare dintre taskurile gata (P = ${task.prio})`,
+        EDF: `are termenul absolut cel mai apropiat (d = ${s.job.d})`,
+        LLF: `are laxitatea cea mai mică (X = ${s.laxity})`,
+        FIFO: `a fost eliberat primul (r = ${s.job.r})`
+      }[policy];
+    };
+    const others = cand.filter(s => s !== run);
+    let txt = `La t = ${t} rulează ${nm(run)}, jobul J${run.job.k}`;
+    if (!others.length) return txt + ': este singurul task cu un job gata.';
+    const best = Math.min(...cand.map(key));
+    if (!res.preemptive && key(run) > best) {
+      const better = others.find(s => key(s) === best);
+      txt += `: planificarea este nepreemptivă, iar jobul a început înainte, deci continuă, deși ${nm(better)} are prioritate mai mare.`;
+    } else {
+      txt += `: ${what(run)}`;
+      if (others.some(s => key(s) === key(run))) txt += policy === 'LLF' ? '; la egalitate, jobul care rula deja continuă' : '; la egalitate, câștigă taskul aflat mai sus în tabel';
+      txt += '.';
+    }
+    return txt + ` Așteaptă în Ready: ${others.map(nm).join(', ')}.`;
   }
 
   function drawGantt() {
@@ -326,6 +418,7 @@
     const t = sched.cursor, res = sched.result;
     const st = S.stateAt(res, t);
     $('s-state-title').textContent = `Starea taskurilor în intervalul [${t}, ${t + 1})`;
+    $('s-why').innerHTML = whyText(res, t);
     const name = { running: 'Running', ready: 'Ready', waiting: 'Blocked' };
     const rows = st.map((s, i) => {
       const task = res.tasks[i];
@@ -336,7 +429,7 @@
         <td class="num">${s.job ? s.job.d : (s.nextRelease !== null ? `următoarea r = ${s.nextRelease}` : '—')}</td>
         <td class="num ${s.job && s.laxity < 0 ? 'bad' : ''}">${s.job ? s.laxity : '—'}</td></tr>`;
     });
-    $('s-state').innerHTML = `<caption class="note">Blocked: jobul curent a terminat, taskul așteaptă următoarea eliberare.</caption><thead><tr><th>Task</th><th>Stare</th><th>Job</th><th>c(t) rămas</th><th>d (termen)</th><th>X(t)</th></tr></thead><tbody>${rows.join('')}</tbody>`;
+    $('s-state').innerHTML = `<caption class="note">Blocked: jobul curent a terminat, taskul așteaptă următoarea eliberare.</caption><thead><tr><th>Task</th><th>Stare</th><th>Job</th><th>Calcul rămas c(t)</th><th>Termen d</th><th>Laxitate X(t)</th></tr></thead><tbody>${rows.join('')}</tbody>`;
   }
 
   function drawLoad() {
@@ -439,7 +532,7 @@
     }
     if (an.hasAperiodic) out.push('<p class="note">Taskurile aperiodice nu intră în teste: nu au o margine a cererii de procesor. Un task periodic sau sporadic mai puțin prioritar decât unul aperiodic nu poate primi nicio garanție.</p>');
     if (sched.tasks.some(t => t.type === 'sporadic') || $('s-varC').checked) {
-      out.push('<p class="note">Simularea arată o singură realizare; testele de mai sus acoperă cazul cel mai defavorabil (sporadic la intervalul minim, fiecare job cu C complet).</p>');
+      out.push('<p class="note">Simularea arată un singur scenariu; testele de mai sus acoperă cazul cel mai defavorabil (sporadic la intervalul minim, fiecare job cu C complet).</p>');
     }
     $('s-analysis').innerHTML = out.join('');
   }
@@ -489,7 +582,10 @@
   $('p-seed').addEventListener('click', () => { pSeed++; renderPeriodic(); });
 
   function renderPeriodic() {
-    const T = pv.T(), C = pv.C(), Cmin = Math.min(pv.Cmin(), C), n = pv.n();
+    // timpul de calcul minim nu poate depăși maximul
+    const cm = $('p-Cmin');
+    if (+cm.value > pv.C()) { cm.value = pv.C(); cm.parentNode.querySelector('output').textContent = cm.value; }
+    const T = pv.T(), C = pv.C(), Cmin = pv.Cmin(), n = pv.n();
     const res = S.periodicRelease({ T, C, Cmin, epsMax: pv.eps(), n, seed: pSeed });
     const mk = (list, ti) => list.map(j => ({
       id: 0, task: ti, k: j.k, r: j.wake, d: Infinity, exec: j.C, start: j.s, finish: j.f,
@@ -513,13 +609,16 @@
     jobTip(result, $('p-gantt'));
 
     const a = res.absStats, r = res.relStats;
+    const eps = pv.eps();
+    const absOk = a.maxL <= eps;
     $('p-cards').innerHTML = [
-      card('Absolut: jitter J', String(a.J), `max L = ${a.maxL}, min L = ${a.maxL - a.J}`),
-      card('Absolut: jitter relativ', String(a.Jrel), 'cel mai mare salt între joburi'),
-      card('Absolut: deriva', '0', verdict('ok', 'grila rămâne pe loc')),
-      card(`Relativ: deriva după ${n} joburi`, String(r.last), r.last > 0 ? verdict('bad', 'crește la fiecare job') : 'fără calcul, fără derivă'),
-      card('Relativ: perioada reală medie', fmt2(r.period), `în loc de T = ${T}`),
-      card('Frecvența', `${fmt2(1000 / r.period)} Hz`, `în loc de ${fmt2(1000 / T)} Hz`)
+      card('Absolut: jitter J', `${a.J} ms`, `cea mai mare L = ${a.maxL} ms, cea mai mică = ${a.maxL - a.J} ms`),
+      card('Absolut: jitter relativ', `${a.Jrel} ms`, 'cel mai mare salt între două joburi'),
+      card(`Absolut: întârzierea jobului ${n - 1}`, `${a.last} ms`,
+        absOk ? verdict('ok', 'nu se acumulează') : verdict('bad', 'joburile nu încap în T')),
+      card(`Relativ: întârzierea jobului ${n - 1}`, `${r.last} ms`, r.last > eps ? verdict('bad', 'deriva crește la fiecare job') : 'fără calcul, fără derivă'),
+      card('Relativ: perioada reală medie', `${fmt2(r.period)} ms`, `în loc de T = ${T} ms`),
+      card('Relativ: frecvența reală', `${fmt2(1000 / r.period)} Hz`, `în loc de ${fmt2(1000 / T)} Hz`)
     ].join('');
 
     R.lineChart($('p-lat'), {
@@ -527,7 +626,7 @@
         { name: 'absolut', color: color(0), points: res.abs.map(j => [j.k, j.L]) },
         { name: 'relativ', color: color(1), points: res.rel.map(j => [j.k, j.L]) }
       ],
-      xMax: n - 1, yMin: 0, yMax: Math.max(4, r.maxL, a.maxL), height: 220,
+      xMax: n - 1, yMin: 0, yMax: Math.max(4, r.maxL, a.maxL), height: 220, xName: 'jobul k', yFmt: v => `${v} ms`,
       yTicks: [0, Math.round(Math.max(4, r.maxL, a.maxL) / 2), Math.max(4, r.maxL, a.maxL)],
       xLabel: 'jobul k', yLabel: 'L (ms)'
     });
@@ -565,9 +664,16 @@
   });
   $('sp-demo').addEventListener('click', () => spRec.set(SP_DEMO));
 
+  const SP_NOTES = {
+    none: 'Fiecare eveniment eliberează un job, oricât de aproape ar fi de precedentul. Ipoteza analizei, cel puțin Tmin între eliberări, nu este impusă de nimic.',
+    ignore: 'Un eveniment venit la mai puțin de Tmin după ultimul acceptat este ignorat, ca la filtrarea vibrațiilor din 5.4. Intervalul minim este garantat, dar o apăsare reală prea apropiată se pierde.',
+    defer: 'Un eveniment prea apropiat nu se pierde: eliberarea lui se amână până la Tmin după eliberarea precedentă. Intervalul minim este garantat, dar răspunsul întârzie; termenul D se socotește de la eliberarea amânată, nu de la apăsare.'
+  };
+
   function renderSporadic() {
     spRec.tick();
     const C = sv.C(), Tmin = sv.T(), D = sv.D(), pol = $('sp-policy').value;
+    $('sp-policy-note').textContent = SP_NOTES[pol];
     const filt = S.sporadicFilter(spRec.events, Tmin, pol);
     const rels = filt.filter(f => f.release !== null && f.release < TY_H);
     const tasks = [
@@ -604,13 +710,13 @@
     $('sp-cards').innerHTML = [
       card('Evenimente', String(spRec.events.length), `${relT.length} joburi eliberate`),
       card('Ignorate / amânate', `${rejected} / ${deferred}`, pol === 'none' ? 'nu se impune nimic' : 'impus de cod'),
-      card('Cel mai mic interval între eliberări', isFinite(minGap) ? String(minGap) : '—',
+      card('Cel mai mic interval între eliberări', isFinite(minGap) ? `${minGap} ms` : '—',
         isFinite(minGap) ? (okGap ? verdict('ok', `≥ Tmin = ${Tmin}`) : verdict('bad', `< Tmin = ${Tmin}`)) : ''),
       card('Termene ratate „reglaj”', `${res.stats[1].missed} din ${res.stats[1].jobs}`,
         res.stats[1].missed ? verdict('bad', 'reglajul plătește') : verdict('ok', 'toate la timp')),
       card('Termene ratate „buton”', `${res.stats[0].missed} din ${res.stats[0].jobs}`, ''),
-      card('Cel mai lung timp de la eveniment la terminare', lat.length ? String(Math.max(...lat)) : '—',
-        deferred ? 'include amânarea' : `D = ${D}`)
+      card('Cel mai lung timp de la eveniment la terminare', lat.length ? `${Math.max(...lat)} ms` : '—',
+        deferred ? 'include amânarea' : `termenul este D = ${D} ms`)
     ].join('');
 
     const an = S.analyse(tasks.map(t => ({ ...t, releaseTimes: undefined })), 'FP');
@@ -631,13 +737,14 @@
   }
 
   /* ---------- aperiodic ---------- */
-  const AP_DEMO = [20, 21, 22, 23, 70, 120, 121, 160];
-  const AP_TASKS = [
+  // cereri izolate și o rafală; jurnalul are un job lung, mai puțin urgent
+  const AP_DEMO = [10, 55, 56, 57, 58, 110, 150, 185];
+  const apTasks = () => [
     { name: 'senzor', type: 'periodic', C: 2, T: 8, D: 8, offset: 0, prio: 2 },
-    { name: 'comandă', type: 'periodic', C: 3, T: 12, D: 12, offset: 0, prio: 1 }
+    { name: 'jurnal', type: 'periodic', C: av.jC(), T: 25, D: 25, offset: 0, prio: 1 }
   ];
   const av = {};
-  ['C', 'Q', 'Ts'].forEach(k => { av[k] = bindRange('ap-' + k, renderAperiodic); });
+  ['C', 'Q', 'Ts', 'jC'].forEach(k => { av[k] = bindRange('ap-' + k, renderAperiodic); });
   $('ap-mode').addEventListener('change', renderAperiodic);
   const apRec = Recorder(renderAperiodic, 'ap-clock', 'Trimiteți cereri.');
   apRec.events = AP_DEMO.slice();
@@ -655,14 +762,15 @@
   $('ap-demo').addEventListener('click', () => apRec.set(AP_DEMO));
 
   const AP_NOTES = {
-    high: 'Cererile trec înaintea tuturor: răspund repede, dar o rafală ține procesorul ocupat oricât de mult, iar taskurile periodice își ratează termenele. Niciun test nu poate da garanții.',
-    background: 'Cererile rulează doar când niciun task periodic nu are de lucru: taskurile periodice sunt protejate complet, dar cererile așteaptă mult, mai ales când procesorul este încărcat.',
-    server: 'Cererile primesc un buget Q la fiecare Ts, cu prioritatea dată de Ts (ca la RM). Cât timp bugetul nu e epuizat, cererile răspund repede; apoi așteaptă reîncărcarea. Pentru analiză, serverul se comportă aproximativ ca un task periodic (Q, Ts), deci cererea lui de procesor are o margine.'
+    high: 'Cererile trec înaintea tuturor taskurilor periodice. Răspund cel mai repede, dar o rafală ține procesorul ocupat oricât de mult, iar periodicele își pot rata termenele. Nicio analiză nu poate da garanții, pentru că nu se știe cât de dese vor fi cererile.',
+    background: 'Cererile rulează doar când niciun task periodic nu are de lucru. Periodicele sunt protejate complet, dar o cerere poate aștepta mult, de exemplu după un job lung al jurnalului: cu cât procesorul este mai încărcat, cu atât așteaptă mai mult.',
+    server: 'Cererile sunt servite de un server cu bugetul Q, cu prioritatea dată de Ts, ca la RM. Cât timp servește, serverul consumă din buget; fiecare porțiune consumată revine după Ts. Astfel, în orice interval de Ts ms, cererile primesc cel mult Q ms: pentru analiză, serverul este un task periodic (Q, Ts). O cerere izolată răspunde imediat, o rafală este încetinită la acest ritm. În literatură, regula se numește server sporadic (sporadic server).'
   };
 
   function renderAperiodic() {
     apRec.tick();
     const mode = $('ap-mode').value, Ca = av.C(), Ts = av.Ts(), Q = Math.min(av.Q(), Ts);
+    const AP_TASKS = apTasks();
     ['ap-Q', 'ap-Ts'].forEach(id => { $(id).disabled = mode !== 'server'; });
     $('ap-mode-note').textContent = AP_NOTES[mode];
     const res = S.simulateAperiodic({
@@ -673,7 +781,7 @@
     reqs.forEach(j => {
       j.tip = `<span class="sw" style="background:${color(ai)}"></span><b>cererea ${j.k}</b><br>sosire la ${j.r}, C = ${j.exec}<br>` +
         (j.start !== null ? `început la ${j.start} (după ${j.start - j.r} ms)<br>` : '') +
-        (j.finish !== null ? `<b>terminată la ${j.finish}: R = ${j.finish - j.r}</b>` : 'neterminată în orizont');
+        (j.finish !== null ? `<b>terminată la ${j.finish}: R = ${j.finish - j.r}</b>` : 'neterminată până la sfârșitul simulării');
     });
     R.gantt($('ap-gantt'), res, {
       cpuRow: true, cursor: apRec.running ? apRec.now : null,
@@ -693,14 +801,39 @@
     const pm = res.stats.slice(0, ai).reduce((a, x) => a + x.missed, 0);
     const pj = res.stats.slice(0, ai).reduce((a, x) => a + x.jobs, 0);
     const Up = AP_TASKS.reduce((a, t) => a + t.C / t.T, 0);
+    drawApAnalysis(AP_TASKS, mode, Q, Ts, pm);
     $('ap-cards').innerHTML = [
       card('Termene ratate, taskuri periodice', `${pm} din ${pj}`, pm ? verdict('bad', 'periodicele plătesc') : verdict('ok', 'toate la timp')),
-      card('Timp de răspuns mediu al cererilor', R_.length ? fmt2(R_.reduce((a, b) => a + b, 0) / R_.length) : '—', `${R_.length} din ${reqs.length} terminate`),
-      card('Cel mai lung timp de răspuns', R_.length ? String(Math.max(...R_)) : '—', `C = ${Ca} pe cerere`),
-      card('Utilizarea periodicelor', fmt2(Up), 'senzor + comandă'),
+      card('Timp de răspuns mediu al cererilor', R_.length ? `${fmt2(R_.reduce((a, b) => a + b, 0) / R_.length)} ms` : '—', `${R_.length} din ${reqs.length} terminate`),
+      card('Cel mai lung timp de răspuns', R_.length ? `${Math.max(...R_)} ms` : '—', `C = ${Ca} ms pe cerere`),
+      card('Utilizarea periodicelor', fmt2(Up), 'senzor + jurnal'),
       card('Rezervat pentru cereri', mode === 'server' ? fmt2(Q / Ts) : (mode === 'high' ? 'nelimitat' : 'doar timpul liber'),
         mode === 'server' ? `Q/Ts; total ${fmt2(Up + Q / Ts)}` : '')
     ].join('');
+  }
+
+  /** RTA pentru periodice: în fundal fără cereri, cu serverul ca task (Q, Ts), cu prioritate maximă imposibil. */
+  function drawApAnalysis(tasks, mode, Q, Ts, missed) {
+    if (mode === 'high') {
+      $('ap-analysis').innerHTML = `<p>${verdict('maybe', 'fără garanție')} Cererile au prioritatea cea mai mare și nu au o margine
+        a cererii de procesor, deci nicio analiză nu poate garanta termenele periodicelor.${missed ? ` În simularea de mai sus, ${missed} termen${missed > 1 ? 'e' : ''} ratat${missed > 1 ? 'e' : ''}.` : ''}</p>`;
+      return;
+    }
+    const set = mode === 'server' ? [{ name: 'server', type: 'periodic', C: Q, T: Ts, D: Ts }, ...tasks] : tasks;
+    const rta = S.analyse(set, 'RM').rta;
+    const sw = i => mode === 'server' ? (i === 0 ? `var(--s${tasks.length + 1})` : color(i - 1)) : color(i);
+    const rows = rta.map(x => `<tr><td><span class="sw" style="background:${sw(x.task)}"></span>${esc(set[x.task].name)}${mode === 'server' && x.task === 0 ? ` (Q = ${Q}, Ts = ${Ts})` : ''}</td>
+      <td class="iter">${x.steps.join(' → ')}</td><td class="num">${x.R}</td><td class="num">${set[x.task].D}</td>
+      <td>${x.ok ? verdict('ok', 'R ≤ D') : verdict('bad', 'R > D')}</td></tr>`).join('');
+    const ok = rta.every(x => x.ok);
+    const intro = mode === 'server'
+      ? 'Serverul intră în analiză ca un task periodic (Q, Ts), cu prioritatea dată de Ts.'
+      : 'În fundal, cererile nu întârzie niciodată periodicele, deci analiza le ignoră.';
+    const concl = ok
+      ? verdict('ok', 'garantat') + ' Termenele periodicelor sunt respectate oricât de dese ar fi cererile.'
+      : verdict('bad', 'negarantat') + ' Analiza nu mai poate garanta periodicele: micșorați bugetul Q sau încărcarea jurnalului.' +
+        (missed ? '' : ' Simularea de mai sus nu a nimerit cazul cel mai defavorabil, dar acesta poate apărea.');
+    $('ap-analysis').innerHTML = `<p>${intro}</p><div class="table-wrap"><table><thead><tr><th>Task</th><th>Iterații RTA</th><th>R</th><th>D</th><th></th></tr></thead><tbody>${rows}</tbody></table></div><p>${concl}</p>`;
   }
 
   function showType(type) {

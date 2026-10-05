@@ -137,3 +137,32 @@ test('aperiodic: în fundal nu afectează periodicele, cu prioritate maximă le 
     assert.ok(used <= 3);
   }
 });
+
+test('server: cel mult Q în orice fereastră Ts; dacă RTA trece, periodicele nu ratează', () => {
+  const rand = S.rng(99);
+  const sets = [
+    [{ name: 'a', type: 'periodic', C: 2, T: 8, D: 8 }, { name: 'b', type: 'periodic', C: 4, T: 12, D: 12 }],
+    [{ name: 'a', type: 'periodic', C: 3, T: 10, D: 10 }, { name: 'b', type: 'periodic', C: 6, T: 15, D: 15 }],
+    [{ name: 'a', type: 'periodic', C: 1, T: 5, D: 5 }, { name: 'b', type: 'periodic', C: 5, T: 20, D: 20 }]
+  ];
+  let checked = 0;
+  for (let it = 0; it < 300; it++) {
+    const tasks = sets[it % sets.length];
+    const Ts = 4 + Math.floor(rand() * 20), Q = 1 + Math.floor(rand() * Math.min(6, Ts));
+    const reqs = [];
+    for (let t = Math.floor(rand() * 5); t < 200; t += 1 + Math.floor(-Math.log(1 - rand()) * 10)) reqs.push({ t, C: 1 + Math.floor(rand() * 5) });
+    const r = S.simulateAperiodic({ tasks, requests: reqs, Ca: 3, mode: 'server', Q, Ts, horizon: 200 });
+    const ai = tasks.length;
+    const used = r.schedule.map(id => (id !== null && r.jobs[id].task === ai ? 1 : 0));
+    for (let s = 0; s + Ts <= 200; s++) {
+      assert.ok(used.slice(s, s + Ts).reduce((a, b) => a + b, 0) <= Q, `fereastra ${s}, Q=${Q}, Ts=${Ts}`);
+    }
+    const server = { name: 'server', type: 'periodic', C: Q, T: Ts, D: Ts };
+    const rta = S.analyse([server, ...tasks], 'RM').rta;
+    if (rta.every(x => x.ok)) {
+      checked++;
+      assert.equal(r.stats.slice(0, ai).reduce((a, x) => a + x.missed, 0), 0, `Q=${Q}, Ts=${Ts}`);
+    }
+  }
+  assert.ok(checked > 50);
+});

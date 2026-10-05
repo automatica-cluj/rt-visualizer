@@ -331,8 +331,12 @@
 
   /**
    * Aperiodic: cererile sunt servite cu prioritate maximă, în fundal sau de un
-   * server cu buget Q reîncărcat la fiecare Ts (server amânabil, 3.2 și 4.8).
-   * Taskurile periodice au priorități RM. Întoarce un rezultat de forma lui simulate().
+   * server cu buget (3.2, 4.8). Serverul pornește cu bugetul Q; fiecare porțiune
+   * consumată revine în buget la Ts după momentul în care a început consumul ei
+   * (regula serverului sporadic). Astfel, în orice fereastră de lungime Ts, cererile
+   * primesc cel mult Q, exact ca un task periodic (Q, Ts), iar RTA rămâne valabilă.
+   * Taskurile periodice au priorități RM; serverul are prioritatea dată de Ts.
+   * Întoarce un rezultat de forma lui simulate(), plus seria bugetului.
    */
   function simulateAperiodic(o) {
     const { horizon } = o;
@@ -354,7 +358,10 @@
 
     const schedule = new Array(horizon).fill(null);
     const budget = [];
-    let b = 0, next = 0, active = [], queue = [], running = null, preemptions = 0;
+    let b = o.mode === 'server' ? o.Q : 0;
+    let next = 0, active = [], queue = [], running = null, preemptions = 0;
+    let chunk = null;          // porțiunea de consum în curs: { start, amount }
+    const refills = [];        // reîncărcări programate: { t, amount }
     // rang: număr mai mare = mai prioritar; periodicele după RM
     const rankPeriodic = j => -tasks[j.task].T;
     for (let t = 0; t < horizon; t++) {
@@ -362,7 +369,9 @@
         const j = jobs[next++];
         (j.task === ai ? queue : active).push(j);
       }
-      if (o.mode === 'server' && t % o.Ts === 0) b = o.Q;
+      for (let i = refills.length - 1; i >= 0; i--) {
+        if (refills[i].t === t) { b += refills[i].amount; refills.splice(i, 1); }
+      }
       let pick = null, best = -Infinity;
       active.forEach(j => {
         const r = rankPeriodic(j);
@@ -377,6 +386,8 @@
         if (r !== null && (pick === null || r > best)) { pick = head; best = r; }
       }
       budget.push([t, b]);
+      const serving = pick !== null && pick.task === ai && o.mode === 'server';
+      if (chunk && !serving) { refills.push({ t: chunk.start + o.Ts, amount: chunk.amount }); chunk = null; }
       if (!pick) { running = null; continue; }
       if (running && running !== pick && running.rem > 0) { preemptions++; running.preempted++; }
       running = pick;
@@ -385,7 +396,11 @@
       const seg = pick.segments[pick.segments.length - 1];
       if (seg && seg[1] === t) seg[1] = t + 1; else pick.segments.push([t, t + 1]);
       pick.rem--;
-      if (pick.task === ai && o.mode === 'server') b--;
+      if (serving) {
+        if (!chunk) chunk = { start: t, amount: 0 };
+        chunk.amount++;
+        b--;
+      }
       if (pick.rem === 0) {
         pick.finish = t + 1;
         if (pick.finish > pick.d) pick.missed = true;

@@ -62,7 +62,7 @@
     const W = Math.max(svg.parentNode.clientWidth || 800, 560);
     const rowH = 50;
     const ann = opts.annotate;
-    const annTop = ann ? 58 : 0, annBottom = ann ? 30 : 0;
+    const annTop = ann ? 58 : 0, annBottom = ann ? 46 : 0;
     const evRows = opts.eventRows || [];
     const rows = evRows.length + tasks.length + (opts.cpuRow ? 1 : 0);
     const top = 12;
@@ -102,6 +102,8 @@
     const hits = el('g', { class: 'hits' }, svg);
     // desenele nu prind mouse-ul, ca evenimentele să ajungă la dreptunghiurile .hit
     const marks = el('g', { 'pointer-events': 'none' }, svg);
+    // etichetele stau deasupra tuturor desenelor, ca să nu fie acoperite de săgeți
+    const labels = el('g', { 'pointer-events': 'none' }, svg);
     const tips = [];
     svg._tips = tips;
     const tipHit = (x0, x1, y0, html) => {
@@ -171,7 +173,7 @@
             style: miss ? '' : `stroke:${color(ti)}` }, marks);
           if (miss) {
             const atEnd = x(j.d) + 50 > W - RIGHT;
-            text(marks, x(j.d) + (atEnd ? -5 : 5), base - 30, '✕ ratat',
+            text(labels, x(j.d) + (atEnd ? -5 : 5), base - 30, '✕ ratat',
               { class: 'miss-label', 'text-anchor': atEnd ? 'end' : 'start' });
           }
         }
@@ -245,7 +247,16 @@
     const task = result.tasks[ti];
     if (nxt) dim(j.r, nxt.r, base - 88, `T = ${nxt.r - j.r}`);
     dim(j.r, j.d, base - 64, `D = ${task.D}`);
-    if (j.finish !== null) dim(j.r, j.finish, base + 18, `R = ${j.finish - j.r}`, 'dim-r');
+    // C: execuția jobului, posibil în mai multe bucăți
+    const parts = j.segments.map(([s0, e0]) => e0 - s0);
+    j.segments.forEach(([s0, e0]) => {
+      el('line', { x1: x(s0) + 2, x2: x(e0) - 2, y1: base + 12, y2: base + 12, class: 'cline' }, g);
+    });
+    if (j.segments.length) {
+      const last = j.segments[j.segments.length - 1][1];
+      text(g, x(last) + 6, base + 16, parts.length > 1 ? `C = ${parts.join(' + ')} = ${j.exec}` : `C = ${j.exec}`, { class: 'c-label' });
+    }
+    if (j.finish !== null) dim(j.r, j.finish, base + 32, `R = ${j.finish - j.r}`, 'dim-r');
     text(g, x(j.r) - 5, base - 30, `r${sub(k)}`, { class: 'ann-point', 'text-anchor': 'end' });
     text(g, x(j.d) + 4, base - 42, `d${sub(k)}`, { class: 'ann-point' });
     void scale;
@@ -324,7 +335,7 @@
       const t = Math.round(xMin + (px - LEFT) / sx);
       hover.setAttribute('x1', x(t)); hover.setAttribute('x2', x(t));
       hover.setAttribute('visibility', 'visible');
-      const rows = [`<b>t = ${t}</b>`];
+      const rows = [`<b>${cfg.xName || 't'} = ${t}</b>`];
       cfg.series.forEach((s, i) => {
         const v = valueAt(s, t);
         if (v === null) { dots[i].setAttribute('visibility', 'hidden'); return; }

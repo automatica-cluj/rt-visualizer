@@ -71,12 +71,12 @@ window.RTPresets = [
   {
     id: 'mixed',
     title: 'Periodic, sporadic și aperiodic împreună (3.2)',
-    note: 'Butonul este sporadic (cel mult o apăsare la 15 ms), diagnoza este aperiodică și are prioritatea cea mai mică. Apăsați „Altă realizare aleatoare” și urmăriți diagnoza.',
+    note: 'Butonul este sporadic (cel mult o apăsare la 15 ms), diagnoza este aperiodică și are prioritatea cea mai mică. Apăsați „Alt scenariu aleator” și urmăriți diagnoza.',
     policy: 'FP', horizon: 100,
     tasks: [
       { name: 'senzor', type: 'periodic', C: 2, T: 10, D: 10, offset: 0, prio: 3 },
       { name: 'buton', type: 'sporadic', C: 1, T: 15, D: 5, offset: 3, prio: 4 },
-      { name: 'diagnoză', type: 'aperiodic', C: 4, T: 12, D: 30, offset: 1, prio: 1 }
+      { name: 'diagnoză', type: 'aperiodic', C: 3, T: 20, D: 30, offset: 1, prio: 1 }
     ]
   },
   {

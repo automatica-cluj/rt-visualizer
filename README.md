@@ -17,9 +17,11 @@ GitHub Pages sau inclusă într-o pagină MkDocs.
 |---|---|---|
 | **1. Modelul de task** | $r_0$, $C$, $T$, $D$; eliberare $r_k$, termen absolut $d_k$, timp de răspuns $R$, laxitate $X(t)$; interferența unui task mai prioritar | 3.2 |
 | **2. Periodic, sporadic, aperiodic** | același $C$ și $T$, trei feluri de eliberări; cererea de procesor cumulată; cea mai densă fereastră | 3.2 |
-| **3. Fiecare tip în detaliu** | *Periodic*: așteptare absolută față de relativă pe aceleași $C_k$ și $\varepsilon_k$, deriva, $L_k$, jitter absolut și relativ, histogramă. *Sporadic*: apăsări de buton în timp real (clic sau tasta spațiu), intervalul minim impus (ignorare, amânare) sau doar sperat, efectul asupra unui task periodic mai puțin prioritar și asupra garanției RTA. *Aperiodic*: cereri servite cu prioritate maximă, în fundal sau de un server cu buget $Q$ la fiecare $T_s$, cu graficul bugetului | 2.2, 2.3, 3.2, 4.8, 5.4 |
+| **3. Fiecare tip în detaliu** | *Periodic*: așteptare absolută față de relativă pe aceleași $C_k$ și $\varepsilon_k$, deriva, $L_k$, jitter absolut și relativ, histogramă. *Sporadic*: apăsări de buton în timp real (clic sau tasta spațiu), intervalul minim impus (ignorare, amânare) sau doar sperat, efectul asupra unui task periodic mai puțin prioritar și asupra garanției RTA. *Aperiodic*: cereri servite cu prioritate maximă, în fundal sau de un server cu buget (cel mult $Q$ în orice fereastră de $T_s$, deci analizabil ca task periodic), cu graficul bugetului, RTA pentru periodice și încărcarea periodică reglabilă | 2.2, 2.3, 3.2, 4.8, 5.4 |
 | **4. Planificare și încărcare** | editor de set de taskuri; RM, DM, priorități fixe manuale, EDF, LLF, FIFO; preemptiv sau nu; cursor pas cu pas cu stările Running / Ready / Blocked; factorul de utilizare, limita Liu & Layland, limita hiperbolică, RTA, testul EDF; încărcarea procesorului în timp | 3.3–3.4, 4.2–4.8 |
 | **Legendă** | cum se citește diagrama | — |
+
+Fiecare vedere are o casetă „De încercat”, cu experimente scurte care pun în evidență conceptul, și o cheie a simbolurilor sub diagramă. În fila 4, sub diagramă, o frază explică de ce rulează jobul ales la momentul cursorului.
 
 Fila 4 are exemple gata pregătite, legate de paginile cursului: setul
 „senzor, comandă, jurnal”, instantul critic, „RM ratează, EDF reușește”,
